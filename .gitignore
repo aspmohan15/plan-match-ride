@@ -1,0 +1,35 @@
+# Android Studio & Gradle
+*.iml
+.gradle
+/local.properties
+/.idea/caches
+/.idea/libraries
+/.idea/modules.xml
+/.idea/workspace.xml
+/.idea/navEditor.xml
+/.idea/assetWizardSettings.xml
+/build
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+
+# OS specific files
+.DS_Store
+Thumbs.db
+
+# React Native & Expo
+node_modules/
+.expo/
+dist/
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+*.log
+
+# Backend
+backend/node_modules/
+backend/.env
+
+# Agent/AI tools
+.agent/
