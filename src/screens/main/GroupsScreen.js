@@ -1,10 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, FlatList, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, FlatList, ActivityIndicator, Alert, Modal, TextInput } from 'react-native';
+import { CONFIG } from '../../constants/config';
+import Toast from 'react-native-toast-message';
 
 export default function GroupsScreen({ navigation }) {
   const [pendingRequests, setPendingRequests] = useState([]);
   const [activeGroups, setActiveGroups] = useState([]);
   const [loading, setLoading] = useState(false);
+
+  // Create Group Modal State
+  const [createModalVisible, setCreateModalVisible] = useState(false);
+  const [newGroupName, setNewGroupName] = useState('');
+  const [newGroupDesc, setNewGroupDesc] = useState('');
+  const [isCreating, setIsCreating] = useState(false);
 
   useEffect(() => {
     fetchGroupsAndConnections();
@@ -14,8 +22,8 @@ export default function GroupsScreen({ navigation }) {
     setLoading(true);
     try {
       // Fetch from the newly created backend routes!
-      const groupsRes = await fetch('http://192.168.1.4:3000/api/v1/groups');
-      const connectionsRes = await fetch('http://192.168.1.4:3000/api/v1/groups/connections/pending');
+      const groupsRes = await fetch(`${CONFIG.API_URL}/groups`);
+      const connectionsRes = await fetch(`${CONFIG.API_URL}/groups/connections/pending`);
 
       if (groupsRes.ok && connectionsRes.ok) {
         const groupsData = await groupsRes.json();
@@ -25,7 +33,7 @@ export default function GroupsScreen({ navigation }) {
         const formattedGroups = groupsData.map(g => ({
           id: g.id.toString(),
           name: g.name,
-          members: Math.floor(Math.random() * 20) + 5 // Simulate member count for UI
+          members: g.member_count || 1 // Show actual member count from database
         }));
 
         setActiveGroups(formattedGroups);
@@ -47,8 +55,8 @@ export default function GroupsScreen({ navigation }) {
     // 2. Fire the real API call
     try {
       const endpoint = action === 'accept'
-        ? `http://192.168.1.4:3000/api/v1/groups/connections/${requestId}/accept`
-        : `http://192.168.1.4:3000/api/v1/groups/connections/${requestId}/decline`;
+        ? `${CONFIG.API_URL}/groups/connections/${requestId}/accept`
+        : `${CONFIG.API_URL}/groups/connections/${requestId}/decline`;
 
       const response = await fetch(endpoint, { method: 'POST' });
 
@@ -105,7 +113,7 @@ export default function GroupsScreen({ navigation }) {
 
             // Fire the real API call
             try {
-               await fetch(`http://192.168.1.4:3000/api/v1/groups/${groupId}/leave`, { method: 'POST' });
+               await fetch(`${CONFIG.API_URL}/groups/${groupId}/leave`, { method: 'POST' });
                Alert.alert("Success", `You have left ${groupName}.`);
             } catch (err) {
                console.error("Failed to leave group", err);
@@ -116,10 +124,41 @@ export default function GroupsScreen({ navigation }) {
     );
   };
 
+  const handleCreateGroup = async () => {
+    if (!newGroupName.trim()) {
+      Toast.show({ type: 'error', text1: 'Validation Error', text2: 'Please enter a group name.' });
+      return;
+    }
+
+    setIsCreating(true);
+    try {
+      const response = await fetch(`${CONFIG.API_URL}/groups`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newGroupName, description: newGroupDesc })
+      });
+
+      if (response.ok) {
+        Toast.show({ type: 'success', text1: 'Group Created', text2: `Welcome to ${newGroupName}!` });
+        setCreateModalVisible(false);
+        setNewGroupName('');
+        setNewGroupDesc('');
+        fetchGroupsAndConnections(); // Refresh list
+      } else {
+        throw new Error('Failed to create group');
+      }
+    } catch (err) {
+      console.error(err);
+      Alert.alert('Error', 'Failed to create group. Please try again.');
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
   const renderActiveGroup = ({ item }) => (
     <TouchableOpacity
       style={styles.groupCard}
-      onPress={() => navigation.navigate('GroupChat', { groupName: item.name })}
+      onPress={() => navigation.navigate('GroupChat', { groupId: item.id, groupName: item.name })}
     >
       <View style={{ flex: 1 }}>
         <Text style={styles.groupName}>{item.name}</Text>
@@ -135,52 +174,99 @@ export default function GroupsScreen({ navigation }) {
   );
 
   return (
-    <ScrollView style={styles.container}>
-      {loading ? (
-        <ActivityIndicator size="large" color="#FF5722" style={{ marginTop: 50 }} />
-      ) : (
-        <>
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>🤝 Pending Connection Requests</Text>
-            {pendingRequests.length === 0 ? (
-              <Text style={styles.emptyText}>🏜️ No pending requests.</Text>
-            ) : (
-              <FlatList
-                data={pendingRequests}
-                keyExtractor={(item) => item.id}
-                renderItem={renderPendingRequest}
-                scrollEnabled={false}
-              />
-            )}
-          </View>
+    <>
+      <ScrollView style={styles.container}>
+        {loading ? (
+          <ActivityIndicator size="large" color="#FF5722" style={{ marginTop: 50 }} />
+        ) : (
+          <>
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>🤝 Pending Connection Requests</Text>
+              {pendingRequests.length === 0 ? (
+                <Text style={styles.emptyText}>🏜️ No pending requests.</Text>
+              ) : (
+                <FlatList
+                  data={pendingRequests}
+                  keyExtractor={(item) => item.id}
+                  renderItem={renderPendingRequest}
+                  scrollEnabled={false}
+                />
+              )}
+            </View>
 
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>👥 Active Riding Groups</Text>
-            {activeGroups.length === 0 ? (
-              <View style={styles.emptyGroupContainer}>
-                <Text style={styles.emptyText}>🏜️ You are not in any groups yet.</Text>
-                <Text style={styles.helperText}>
-                  Groups are created automatically when you connect with matching riders on the Discover tab!
-                </Text>
-                <TouchableOpacity
-                  style={styles.findRidersButton}
-                  onPress={() => navigation.navigate('Home')}
-                >
-                  <Text style={styles.findRidersButtonText}>🏍️ Plan a Ride to match</Text>
+            <View style={styles.section}>
+              <View style={styles.sectionHeaderRow}>
+                <Text style={styles.sectionTitle}>👥 Active Riding Groups</Text>
+                <TouchableOpacity onPress={() => setCreateModalVisible(true)}>
+                  <Text style={styles.createGroupText}>➕ Create</Text>
                 </TouchableOpacity>
               </View>
-            ) : (
-              <FlatList
-                data={activeGroups}
-                keyExtractor={(item) => item.id}
-                renderItem={renderActiveGroup}
-                scrollEnabled={false}
-              />
-            )}
+
+              {activeGroups.length === 0 ? (
+                <View style={styles.emptyGroupContainer}>
+                  <Text style={styles.emptyText}>🏜️ You are not in any groups yet.</Text>
+                  <Text style={styles.helperText}>
+                    Groups are created automatically when you connect with matching riders on the Discover tab, or you can create one manually!
+                  </Text>
+                </View>
+              ) : (
+                <FlatList
+                  data={activeGroups}
+                  keyExtractor={(item) => item.id}
+                  renderItem={renderActiveGroup}
+                  scrollEnabled={false}
+                />
+              )}
+            </View>
+            <View style={{ height: 40 }} />
+          </>
+        )}
+      </ScrollView>
+
+      {/* Create Group Modal */}
+      <Modal visible={createModalVisible} animationType="slide" transparent={true}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>➕ Create Riding Group</Text>
+
+            <Text style={styles.label}>Group Name</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="e.g. Weekend Track Boys"
+              value={newGroupName}
+              onChangeText={setNewGroupName}
+            />
+
+            <Text style={styles.label}>Description (Optional)</Text>
+            <TextInput
+              style={[styles.input, { height: 80, textAlignVertical: 'top' }]}
+              placeholder="What is this group about?"
+              multiline
+              value={newGroupDesc}
+              onChangeText={setNewGroupDesc}
+            />
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={styles.cancelButton}
+                onPress={() => setCreateModalVisible(false)}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.createButton, isCreating && { opacity: 0.7 }]}
+                onPress={handleCreateGroup}
+                disabled={isCreating}
+              >
+                <Text style={styles.createButtonText}>
+                  {isCreating ? 'Creating...' : 'Create'}
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
-        </>
-      )}
-    </ScrollView>
+        </View>
+      </Modal>
+    </>
   );
 }
 
@@ -198,6 +284,17 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#333',
     marginBottom: 12,
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  createGroupText: {
+    color: '#FF5722',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
   requestCard: {
     flexDirection: 'row',
@@ -311,4 +408,24 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontSize: 16,
   },
+  // Modal Styles
+  modalOverlay: {
+    flex: 1, backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center', alignItems: 'center'
+  },
+  modalContent: {
+    backgroundColor: '#fff', borderRadius: 16,
+    padding: 24, width: '90%',
+  },
+  modalTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 20, textAlign: 'center', color: '#333' },
+  label: { fontSize: 14, fontWeight: '600', color: '#555', marginBottom: 8 },
+  input: {
+    backgroundColor: '#F0F2F5', borderRadius: 8, paddingHorizontal: 16, paddingVertical: 12,
+    fontSize: 16, color: '#333', borderWidth: 1, borderColor: '#E5E7EB', marginBottom: 20
+  },
+  modalActions: { flexDirection: 'row', justifyContent: 'space-between' },
+  cancelButton: { flex: 1, paddingVertical: 14, alignItems: 'center', marginRight: 10, borderRadius: 8, backgroundColor: '#E5E7EB' },
+  cancelButtonText: { fontSize: 16, fontWeight: 'bold', color: '#4B5563' },
+  createButton: { flex: 1, paddingVertical: 14, alignItems: 'center', borderRadius: 8, backgroundColor: '#FF5722' },
+  createButtonText: { fontSize: 16, fontWeight: 'bold', color: '#fff' }
 });

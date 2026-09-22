@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Image, ScrollView, Alert } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
+import { CONFIG } from '../../constants/config';
 
 export default function DiscoverScreen() {
   const navigation = useNavigation();
@@ -17,7 +18,7 @@ export default function DiscoverScreen() {
       const { from, to, date } = route.params.searchQuery || {};
 
       // Actually call your Fastify Matches Engine
-      fetch(`http://192.168.1.4:3000/api/v1/matches?from=${from}&to=${to}`)
+      fetch(`${CONFIG.API_URL}/matches?from=${from}&to=${to}`)
         .then(res => res.json())
         .then(data => {
             if (data && data.length > 0) {

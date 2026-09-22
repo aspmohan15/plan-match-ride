@@ -10,6 +10,7 @@ import chatRoutes from './modules/chat/index.js';
 import notificationRoutes from './modules/notifications/index.js';
 import locationRoutes from './modules/locations/index.js';
 import groupRoutes from './modules/groups/index.js';
+import userRoutes from './modules/users/index.js';
 import { testConnection } from './common/db.js';
 
 const fastify = Fastify({ logger: true });
@@ -25,6 +26,7 @@ fastify.register(chatRoutes, { prefix: '/api/v1/chat' });
 fastify.register(notificationRoutes, { prefix: '/api/v1/notifications' });
 fastify.register(locationRoutes, { prefix: '/api/v1/locations' });
 fastify.register(groupRoutes, { prefix: '/api/v1/groups' });
+fastify.register(userRoutes, { prefix: '/api/v1/users' });
 
 // Health check endpoint
 fastify.get('/health', async (request, reply) => {

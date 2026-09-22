@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator, Alert } from 'react-native';
 
 import { useNavigation } from '@react-navigation/native';
-
 import Toast from 'react-native-toast-message';
+import { CONFIG } from '../../constants/config';
 
 const TABS = ['Upcoming', 'Active', 'Completed', 'Cancelled'];
 const TAB_ICONS = { Upcoming: '📅', Active: '🏍️', Completed: '✅', Cancelled: '❌' };
@@ -32,7 +32,7 @@ export default function MyTripsScreen() {
     try {
       // Assuming GET /api/v1/trips returns all trips, and we filter them locally
       // In a real app, you would pass the status as a query param (e.g. ?status=planned)
-      const response = await fetch('http://192.168.1.4:3000/api/v1/trips');
+      const response = await fetch(`${CONFIG.API_URL}/trips`);
       if (response.ok) {
         const data = await response.json();
 
@@ -70,7 +70,7 @@ export default function MyTripsScreen() {
       // For backend 'Upcoming' is stored as 'planned'
       const backendStatus = newStatus === 'Upcoming' ? 'planned' : newStatus.toLowerCase();
 
-      const response = await fetch(`http://192.168.1.4:3000/api/v1/trips/${tripId}/status`, {
+      const response = await fetch(`${CONFIG.API_URL}/trips/${tripId}/status`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: backendStatus })
@@ -99,7 +99,7 @@ export default function MyTripsScreen() {
           style: "destructive",
           onPress: async () => {
             try {
-              const response = await fetch(`http://192.168.1.4:3000/api/v1/trips/${tripId}`, {
+              const response = await fetch(`${CONFIG.API_URL}/trips/${tripId}`, {
                 method: 'DELETE'
               });
               if (response.ok) {

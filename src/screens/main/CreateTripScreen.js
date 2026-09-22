@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Alert, Modal, FlatList, ActivityIndicator } from 'react-native';
 import Toast from 'react-native-toast-message';
 import { ERROR_MESSAGES } from '../../constants/errors';
+import { CONFIG } from '../../constants/config';
 import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
@@ -43,7 +44,7 @@ export default function CreateTripScreen({ navigation }) {
     setLoadingLocations(true);
     setLocationError(null);
     try {
-      const response = await fetch('http://192.168.1.4:3000/api/v1/locations');
+      const response = await fetch(`${CONFIG.API_URL}/locations`);
       const json = await response.json();
       if (json.success && json.data && json.data.locations) {
         setLocations(json.data.locations);
@@ -95,6 +96,10 @@ export default function CreateTripScreen({ navigation }) {
         Toast.show({ type: 'error', text1: 'Validation Error', text2: ERROR_MESSAGES.LOCATION_REQUIRED });
         return;
       }
+      if (tripData.startLocation === tripData.destination) {
+        Toast.show({ type: 'error', text1: 'Validation Error', text2: ERROR_MESSAGES.SAME_LOCATION });
+        return;
+      }
     } else if (step === 2) {
       if (!tripData.date.trim() || !tripData.time.trim()) {
         Toast.show({ type: 'error', text1: 'Validation Error', text2: ERROR_MESSAGES.DATETIME_REQUIRED });
@@ -140,7 +145,7 @@ export default function CreateTripScreen({ navigation }) {
         status: 'planned'
       };
 
-      const response = await fetch('http://192.168.1.4:3000/api/v1/trips', {
+      const response = await fetch(`${CONFIG.API_URL}/trips`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)

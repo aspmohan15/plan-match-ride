@@ -1,17 +1,20 @@
 import { query } from './db.js';
 
 const createTablesQuery = `
+-- Clean slate for dev environment
+DROP TABLE IF EXISTS group_members, groups, connections, trips, bikes, user_profiles, users CASCADE;
+
 -- User accounts
-CREATE TABLE IF NOT EXISTS users (
+CREATE TABLE users (
     id SERIAL PRIMARY KEY,
-    email VARCHAR(255) UNIQUE NOT NULL,
+    phone_number VARCHAR(20) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Extended user profiles
-CREATE TABLE IF NOT EXISTS user_profiles (
+CREATE TABLE user_profiles (
     user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
     full_name VARCHAR(255),
     bio TEXT,
@@ -22,7 +25,7 @@ CREATE TABLE IF NOT EXISTS user_profiles (
 );
 
 -- User's motorcycles
-CREATE TABLE IF NOT EXISTS bikes (
+CREATE TABLE bikes (
     id SERIAL PRIMARY KEY,
     user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
     make VARCHAR(100) NOT NULL,
@@ -33,7 +36,7 @@ CREATE TABLE IF NOT EXISTS bikes (
 );
 
 -- Planned or past trips
-CREATE TABLE IF NOT EXISTS trips (
+CREATE TABLE trips (
     id SERIAL PRIMARY KEY,
     creator_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
     title VARCHAR(255) NOT NULL,
@@ -46,7 +49,7 @@ CREATE TABLE IF NOT EXISTS trips (
 );
 
 -- User connections (friends, matching)
-CREATE TABLE IF NOT EXISTS connections (
+CREATE TABLE connections (
     user_id_1 INTEGER REFERENCES users(id) ON DELETE CASCADE,
     user_id_2 INTEGER REFERENCES users(id) ON DELETE CASCADE,
     status VARCHAR(50) NOT NULL, -- pending, accepted, blocked
@@ -55,12 +58,20 @@ CREATE TABLE IF NOT EXISTS connections (
 );
 
 -- Riding groups
-CREATE TABLE IF NOT EXISTS groups (
+CREATE TABLE groups (
     id SERIAL PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
     description TEXT,
     creator_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Group Members (Many-to-Many mapping)
+CREATE TABLE group_members (
+    group_id INTEGER REFERENCES groups(id) ON DELETE CASCADE,
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (group_id, user_id)
 );
 `;
 

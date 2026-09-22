@@ -5,6 +5,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import Toast from 'react-native-toast-message';
 import { ERROR_MESSAGES } from '../../constants/errors';
 import { registerForPushNotificationsAsync } from '../../services/notifications.service';
+import { CONFIG } from '../../constants/config';
 
 const LOCATIONS = ["Bangalore", "Mysore", "Coorg", "Chikmagalur", "Nandi Hills", "Ooty", "Kodaikanal", "Yercaud", "Chennai", "Coimbatore"];
 
@@ -45,7 +46,7 @@ export default function HomeScreen({ navigation }) {
   const fetchUpcomingTrips = async () => {
     setLoadingTrips(true);
     try {
-      const response = await fetch('http://192.168.1.4:3000/api/v1/trips');
+      const response = await fetch(`${CONFIG.API_URL}/trips`);
       if (response.ok) {
         const data = await response.json();
         // Map backend keys to frontend keys if necessary
@@ -110,10 +111,15 @@ export default function HomeScreen({ navigation }) {
         return;
     }
 
+    if (from === to) {
+        Toast.show({ type: 'error', text1: 'Validation Error', text2: ERROR_MESSAGES.SAME_LOCATION });
+        return;
+    }
+
     Toast.show({ type: 'success', text1: 'Searching', text2: 'Looking for riders...' });
 
-    // Attempt to hit the matching API using local IP
-    fetch('http://192.168.1.4:3000/api/v1/matches', {
+    // Attempt to hit the matching API using configured IP
+    fetch(`${CONFIG.API_URL}/matches`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ from, to, date: combinedDate.toISOString() })

@@ -39,11 +39,11 @@ export default function LoginScreen({ navigation }) {
       <View style={[styles.content, { paddingBottom: Math.max(insets.bottom, 24) + 20 }]}>
         {step === 'phone' ? (
           <>
-            <Text style={styles.title}>Enter your phone number</Text>
+            <Text style={styles.title}>📱 Enter your phone number</Text>
             <Text style={styles.subtitle}>We will send you a verification code.</Text>
 
             <View style={styles.phoneInputContainer}>
-              <Text style={styles.countryCode}>+91</Text>
+              <Text style={styles.countryCode}>🇮🇳 +91</Text>
               <TextInput
                 style={styles.phoneInput}
                 placeholder="Phone Number"
@@ -55,17 +55,17 @@ export default function LoginScreen({ navigation }) {
             </View>
 
             <TouchableOpacity style={styles.button} onPress={handleSendOTP}>
-              <Text style={styles.buttonText}>Send OTP</Text>
+              <Text style={styles.buttonText}>Send OTP 📨</Text>
             </TouchableOpacity>
           </>
         ) : (
           <>
-            <Text style={styles.title}>Verify OTP</Text>
+            <Text style={styles.title}>🔒 Verify OTP</Text>
             <Text style={styles.subtitle}>Enter the code sent to {phoneNumber}</Text>
 
             <TextInput
               style={styles.input}
-              placeholder="Enter OTP (e.g. 1234)"
+              placeholder="🔢 Enter OTP (e.g. 123456)"
               keyboardType="number-pad"
               maxLength={6}
               value={otp}
@@ -73,11 +73,11 @@ export default function LoginScreen({ navigation }) {
             />
 
             <TouchableOpacity style={styles.button} onPress={handleVerifyOTP}>
-              <Text style={styles.buttonText}>Verify & Continue</Text>
+              <Text style={styles.buttonText}>Verify & Continue 🚀</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.backButton} onPress={() => setStep('phone')}>
-              <Text style={styles.backButtonText}>Change Phone Number</Text>
+              <Text style={styles.backButtonText}>🔙 Change Phone Number</Text>
             </TouchableOpacity>
           </>
         )}

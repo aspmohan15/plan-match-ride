@@ -43,6 +43,10 @@ export default function OnboardingScreen({ navigation }) {
 
   const handleNext = () => {
     if (step === 1) {
+      if (!photo) {
+        Toast.show({ type: 'error', text1: 'Validation Error', text2: ERROR_MESSAGES.PHOTO_REQUIRED });
+        return;
+      }
       if (!name.trim()) {
         Toast.show({ type: 'error', text1: 'Validation Error', text2: ERROR_MESSAGES.NAME_REQUIRED });
         return;
@@ -84,19 +88,22 @@ export default function OnboardingScreen({ navigation }) {
       case 1:
         return (
           <View style={styles.stepContainer}>
-            <Text style={styles.title}>Let's get to know you</Text>
+            <Text style={styles.title}>👋 Let's get to know you</Text>
             <TouchableOpacity onPress={handlePickImage} style={styles.photoContainer}>
               <View style={styles.photoPlaceholder}>
                 {photo ? (
                   <Image source={{ uri: photo }} style={styles.photoImage} />
                 ) : (
-                  <Text style={styles.photoText}>Add Photo</Text>
+                  <>
+                    <Text style={{ fontSize: 32, marginBottom: 8 }}>📸</Text>
+                    <Text style={styles.photoText}>Add Photo</Text>
+                  </>
                 )}
               </View>
             </TouchableOpacity>
             <TextInput
               style={styles.input}
-              placeholder="Your Full Name"
+              placeholder="👤 Your Full Name"
               value={name}
               onChangeText={setName}
             />
@@ -105,20 +112,23 @@ export default function OnboardingScreen({ navigation }) {
       case 2:
         return (
           <View style={styles.stepContainer}>
-            <Text style={styles.title}>Add Your Bike</Text>
-            <Text style={styles.subtitle}>What do you ride?</Text>
+            <Text style={styles.title}>🏍️ Add Your Bike</Text>
+            <Text style={styles.subtitle}>🤔 What do you ride?</Text>
             <TouchableOpacity onPress={handlePickBikeImage} style={styles.photoContainer}>
               <View style={styles.photoPlaceholder}>
                 {bikePhoto ? (
                   <Image source={{ uri: bikePhoto }} style={styles.photoImage} />
                 ) : (
-                  <Text style={styles.photoText}>Add Bike Photo</Text>
+                  <>
+                    <Text style={{ fontSize: 32, marginBottom: 8 }}>📸</Text>
+                    <Text style={styles.photoText}>Add Bike Photo</Text>
+                  </>
                 )}
               </View>
             </TouchableOpacity>
             <TextInput
               style={styles.input}
-              placeholder="Bike Make & Model (e.g., Yamaha MT-07)"
+              placeholder="🏍️ Bike Make & Model (e.g., Yamaha MT-07)"
               value={bikeModel}
               onChangeText={setBikeModel}
             />
@@ -127,10 +137,10 @@ export default function OnboardingScreen({ navigation }) {
       case 3:
         return (
           <View style={styles.stepContainer}>
-            <Text style={styles.title}>Your Riding Style</Text>
-            <Text style={styles.subtitle}>Select what describes you best</Text>
+            <Text style={styles.title}>🔥 Your Riding Style</Text>
+            <Text style={styles.subtitle}>👇 Select what describes you best</Text>
 
-            {['Commuter', 'Touring', 'Sport/Track', 'Off-road', 'Cruiser'].map((style) => (
+            {['🛵 Commuter', '🛣️ Touring', '🏎️ Sport/Track', '🏜️ Off-road', '😎 Cruiser'].map((style) => (
               <TouchableOpacity
                 key={style}
                 style={[
