@@ -5,8 +5,11 @@ import Toast from 'react-native-toast-message';
 import { ERROR_MESSAGES } from '../../constants/errors';
 import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
 
-export default function OnboardingScreen({ navigation }) {
+import { AuthContext } from '../../context/AuthContext';
+
+export default function OnboardingScreen({ navigation, route }) {
   const insets = useSafeAreaInsets();
+  const { login } = React.useContext(AuthContext);
 
   // Step 1: Name/Photo -> Step 2: Add Bike -> Step 3: Riding Style
   const [step, setStep] = useState(1);
@@ -67,11 +70,14 @@ export default function OnboardingScreen({ navigation }) {
         Toast.show({ type: 'error', text1: 'Validation Error', text2: ERROR_MESSAGES.STYLE_REQUIRED });
         return;
       }
-      // Finish Onboarding -> Go to Main App
-      navigation.reset({
-        index: 0,
-        routes: [{ name: 'MainTabs' }],
-      });
+      // Finish Onboarding -> Save profile in DB -> Go to Main App
+      // In a real app we would call an API here to update the user profile.
+      // For now we just mark them as logged in, which switches the navigator to MainTabs
+      if (route.params?.token && route.params?.user) {
+        login(route.params.token, route.params.user);
+      } else {
+        navigation.navigate('Login'); // fallback
+      }
     }
   };
 

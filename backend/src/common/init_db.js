@@ -8,10 +8,23 @@ DROP TABLE IF EXISTS group_members, groups, connections, trips, bikes, user_prof
 CREATE TABLE users (
     id SERIAL PRIMARY KEY,
     phone_number VARCHAR(20) UNIQUE NOT NULL,
-    password_hash VARCHAR(255) NOT NULL,
+    phone_verified BOOLEAN DEFAULT false,
+    last_login_at TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+-- OTP Verifications
+CREATE TABLE otp_verifications (
+    id SERIAL PRIMARY KEY,
+    phone_number VARCHAR(20) NOT NULL,
+    otp_hash VARCHAR(255) NOT NULL,
+    expires_at TIMESTAMP NOT NULL,
+    attempts INTEGER DEFAULT 0,
+    verified_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 
 -- Extended user profiles
 CREATE TABLE user_profiles (

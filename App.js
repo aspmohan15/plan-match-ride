@@ -2,6 +2,7 @@ import React from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer } from '@react-navigation/native';
 import { RootNavigator } from './src/navigation/RootNavigator';
+import { AuthProvider } from './src/context/AuthContext';
 import Toast from 'react-native-toast-message';
 import { toastConfig } from './src/components/ToastConfig';
 import { LogBox } from 'react-native';
@@ -14,9 +15,11 @@ LogBox.ignoreLogs([
 export default function App() {
   return (
     <SafeAreaProvider>
-      <NavigationContainer>
-        <RootNavigator />
-      </NavigationContainer>
+      <AuthProvider>
+        <NavigationContainer>
+          <RootNavigator />
+        </NavigationContainer>
+      </AuthProvider>
       <Toast config={toastConfig} />
     </SafeAreaProvider>
   );
