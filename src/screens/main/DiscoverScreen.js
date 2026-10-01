@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Image, ScrollView, Alert } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { CONFIG } from '../../constants/config';
+import { API_BASE_URL } from '../../constants/api';
 
 export default function DiscoverScreen() {
   const navigation = useNavigation();
@@ -18,7 +18,7 @@ export default function DiscoverScreen() {
       const { from, to, date } = route.params.searchQuery || {};
 
       // Actually call your Fastify Matches Engine
-      fetch(`${CONFIG.API_URL}/matches?from=${from}&to=${to}`)
+      fetch(`${API_BASE_URL}/api/v1/matches?from=${from}&to=${to}`)
         .then(res => res.json())
         .then(data => {
             if (data && data.length > 0) {
@@ -141,7 +141,7 @@ export default function DiscoverScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#F5F7FA',
   },
   centerContainer: {
     flex: 1,
@@ -208,13 +208,13 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 15,
-    marginBottom: 15,
+    borderRadius: 20,
+    padding: 20,
+    marginBottom: 16,
     shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 5,
-    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
     elevation: 3,
   },
   cardHeader: {
@@ -242,7 +242,7 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
   },
   tagBadge: {
-    backgroundColor: '#e0f7fa',
+    backgroundColor: '#E8F0FE',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
@@ -251,7 +251,7 @@ const styles = StyleSheet.create({
   },
   tagText: {
     fontSize: 12,
-    color: '#00796b',
+    color: '#1A1A1A',
     fontWeight: '600',
   },
   detailsContainer: {
@@ -272,9 +272,9 @@ const styles = StyleSheet.create({
   },
   connectButton: {
     flex: 1,
-    backgroundColor: '#28a745',
-    paddingVertical: 10,
-    borderRadius: 8,
+    backgroundColor: '#1A1A1A',
+    paddingVertical: 12,
+    borderRadius: 12,
     alignItems: 'center',
     marginRight: 10,
   },
@@ -285,15 +285,14 @@ const styles = StyleSheet.create({
   },
   profileButton: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
-    borderWidth: 1,
-    borderColor: '#ced4da',
-    paddingVertical: 10,
-    borderRadius: 8,
+    backgroundColor: '#E9ECEF',
+    borderWidth: 0,
+    paddingVertical: 12,
+    borderRadius: 12,
     alignItems: 'center',
   },
   profileButtonText: {
-    color: '#495057',
+    color: '#1A1A1A',
     fontWeight: 'bold',
     fontSize: 15,
   },

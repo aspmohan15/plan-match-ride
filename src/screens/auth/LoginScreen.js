@@ -43,6 +43,7 @@ export default function LoginScreen({ navigation }) {
         setOtp('');
       }
     } catch (error) {
+    console.log(error)
       Toast.show({ type: 'error', text1: 'Error', text2: error.message || 'Failed to send OTP' });
     } finally {
       setIsLoading(false);
@@ -118,7 +119,7 @@ export default function LoginScreen({ navigation }) {
 
             <TextInput
               style={styles.input}
-              placeholder="🔢 Enter 6-digit OTP"
+              placeholder="Enter 6-digit OTP"
               keyboardType="number-pad"
               maxLength={6}
               value={otp}
@@ -141,7 +142,7 @@ export default function LoginScreen({ navigation }) {
               disabled={countdown > 0 || isLoading}
             >
               <Text style={styles.resendButtonText}>
-                {countdown > 0 ? \`Resend OTP in \${countdown}s\` : 'Resend OTP'}
+                {countdown > 0 ? `Resend OTP in ${countdown}s` : 'Resend OTP'}
               </Text>
             </TouchableOpacity>
 
@@ -166,7 +167,7 @@ const styles = StyleSheet.create({
   },
   countryCode: { paddingHorizontal: 16, fontSize: 16, color: '#333', fontWeight: '600', borderRightWidth: 1, borderRightColor: '#ddd', lineHeight: 50 },
   phoneInput: { flex: 1, height: '100%', paddingHorizontal: 16, fontSize: 16 },
-  input: { height: 50, borderWidth: 1, borderColor: '#ddd', borderRadius: 8, paddingHorizontal: 16, fontSize: 16, marginBottom: 24, backgroundColor: '#f9f9f9', letterSpacing: 8, textAlign: 'center' },
+  input: { height: 50, borderWidth: 1, borderColor: '#ddd', borderRadius: 8, paddingHorizontal: 16, fontSize: 18, marginBottom: 24, backgroundColor: '#f9f9f9', letterSpacing: 8, textAlign: 'center' },
   button: { backgroundColor: '#FF5722', height: 50, borderRadius: 8, justifyContent: 'center', alignItems: 'center' },
   buttonText: { color: '#fff', fontSize: 18, fontWeight: '600' },
   resendButton: { marginTop: 24, alignItems: 'center' },

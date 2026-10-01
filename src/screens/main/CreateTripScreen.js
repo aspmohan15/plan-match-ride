@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Alert, Modal, FlatList, ActivityIndicator } from 'react-native';
 import Toast from 'react-native-toast-message';
 import { ERROR_MESSAGES } from '../../constants/errors';
-import { CONFIG } from '../../constants/config';
+import { API_BASE_URL } from '../../constants/api';
 import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
@@ -44,7 +44,7 @@ export default function CreateTripScreen({ navigation }) {
     setLoadingLocations(true);
     setLocationError(null);
     try {
-      const response = await fetch(`${CONFIG.API_URL}/locations`);
+      const response = await fetch(`${API_BASE_URL}/api/v1/locations`);
       const json = await response.json();
       if (json.success && json.data && json.data.locations) {
         setLocations(json.data.locations);
@@ -145,7 +145,7 @@ export default function CreateTripScreen({ navigation }) {
         status: 'planned'
       };
 
-      const response = await fetch(`${CONFIG.API_URL}/trips`, {
+      const response = await fetch(`${API_BASE_URL}/api/v1/trips`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)

@@ -5,7 +5,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import Toast from 'react-native-toast-message';
 import { ERROR_MESSAGES } from '../../constants/errors';
 import { registerForPushNotificationsAsync } from '../../services/notifications.service';
-import { CONFIG } from '../../constants/config';
+import { API_BASE_URL } from '../../constants/api';
 
 const LOCATIONS = ["Bangalore", "Mysore", "Coorg", "Chikmagalur", "Nandi Hills", "Ooty", "Kodaikanal", "Yercaud", "Chennai", "Coimbatore"];
 
@@ -46,7 +46,7 @@ export default function HomeScreen({ navigation }) {
   const fetchUpcomingTrips = async () => {
     setLoadingTrips(true);
     try {
-      const response = await fetch(`${CONFIG.API_URL}/trips`);
+      const response = await fetch(`${API_BASE_URL}/api/v1/trips`);
       if (response.ok) {
         const data = await response.json();
         // Map backend keys to frontend keys if necessary
@@ -119,7 +119,7 @@ export default function HomeScreen({ navigation }) {
     Toast.show({ type: 'success', text1: 'Searching', text2: 'Looking for riders...' });
 
     // Attempt to hit the matching API using configured IP
-    fetch(`${CONFIG.API_URL}/matches`, {
+    fetch(`${API_BASE_URL}/api/v1/matches`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ from, to, date: combinedDate.toISOString() })
@@ -282,20 +282,20 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#F5F7FA' },
   container: { padding: 16 },
   heroCard: {
-    backgroundColor: '#fff', borderRadius: 16, padding: 20,
+    backgroundColor: '#fff', borderRadius: 24, padding: 20,
     shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1, shadowRadius: 8, elevation: 4, marginBottom: 24,
+    shadowOpacity: 0.06, shadowRadius: 12, elevation: 3, marginBottom: 24,
   },
   heroTitle: { fontSize: 22, fontWeight: 'bold', color: '#333', marginBottom: 16 },
   inputContainer: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 },
   pickerButton: {
-    flex: 1, backgroundColor: '#F0F2F5', borderRadius: 8,
+    flex: 1, backgroundColor: '#F0F3F6', borderRadius: 12,
     paddingHorizontal: 12, paddingVertical: 14, marginHorizontal: 4,
   },
   pickerTextPlaceholder: { color: '#999', fontSize: 14 },
   pickerTextValue: { color: '#333', fontSize: 14 },
   primaryButton: {
-    backgroundColor: '#FF5722', borderRadius: 8, paddingVertical: 14,
+    backgroundColor: '#1A1A1A', borderRadius: 14, paddingVertical: 16,
     alignItems: 'center', marginTop: 8,
   },
   primaryButtonText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },

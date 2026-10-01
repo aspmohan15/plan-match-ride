@@ -1,6 +1,13 @@
+// ⚠️ Development Only: Bypass strict SSL certificate checks.
+// Required for company laptops/VPNs that intercept SSL traffic (Fixes UNABLE_TO_GET_ISSUER_CERT_LOCALLY).
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+
 import 'dotenv/config';
 import Fastify from 'fastify';
 import fastifyWebsocket from '@fastify/websocket';
+import fastifyMultipart from '@fastify/multipart';
+
+import fastifyCors from '@fastify/cors';
 
 // Import modules
 import authRoutes from './modules/auth/index.js';
@@ -16,7 +23,15 @@ import { testConnection } from './common/db.js';
 const fastify = Fastify({ logger: true });
 
 // Register Plugins
+fastify.register(fastifyCors, {
+  origin: true // Allows all origins, necessary for local dev with real devices
+});
 fastify.register(fastifyWebsocket);
+fastify.register(fastifyMultipart, {
+  limits: {
+    fileSize: 10 * 1024 * 1024 // 10MB
+  }
+});
 
 // Register Routes
 fastify.register(authRoutes, { prefix: '/api/v1/auth' });
@@ -43,9 +58,8 @@ const start = async () => {
 
     // 2. Start the server
     const port = process.env.PORT || 3000;
-    const host = process.env.HOST || '0.0.0.0';
 
-    await fastify.listen({ port, host });
+    await fastify.listen({ port, host: '0.0.0.0' });
     fastify.log.info(`Server listening on ${fastify.server.address().port}`);
   } catch (err) {
     fastify.log.error(err);

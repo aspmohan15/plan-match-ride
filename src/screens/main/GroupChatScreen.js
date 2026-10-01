@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, Keyboard
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as SMS from 'expo-sms';
 import { CONFIG } from '../../constants/config';
+import { API_BASE_URL } from '../../constants/api';
 import Toast from 'react-native-toast-message';
 
 export default function GroupChatScreen({ route }) {
@@ -27,8 +28,8 @@ export default function GroupChatScreen({ route }) {
   useEffect(() => {
     fetchGroupMembers();
 
-    // Initialize WebSocket connection using config
-    ws.current = new WebSocket(`${CONFIG.WS_URL}/chat/group/${groupId}`);
+    const wsUrl = API_BASE_URL.replace('http', 'ws') + '/api/v1/chat/group/' + groupId;
+    ws.current = new WebSocket(wsUrl);
 
     ws.current.onopen = () => {
       console.log('Connected to group chat:', groupId);
@@ -37,14 +38,8 @@ export default function GroupChatScreen({ route }) {
 
     ws.current.onmessage = (e) => {
       try {
-        const incomingMessage = JSON.parse(e.data);
-        // Only append if it's not our own message (since we optimistically add our own)
-        // Or handle it based on a unique ID if the server echoes it back
-        setMessages((prevMessages) => {
-          // Prevent duplicates if server echoes our message
-          if (prevMessages.some(m => m.id === incomingMessage.id)) return prevMessages;
-          return [...prevMessages, incomingMessage];
-        });
+        const msg = JSON.parse(e.data);
+        setMessages((prev) => [...prev, msg]);
       } catch (err) {
         console.error('Failed to parse incoming message:', err);
       }
@@ -80,25 +75,11 @@ export default function GroupChatScreen({ route }) {
 
   const sendMessage = () => {
     if (inputText.trim().length > 0) {
-      const newMessage = {
-        id: Date.now().toString(),
-        text: inputText.trim(),
-        sender: currentUser,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        isOwn: true,
-      };
-
-      // Optimistically add to UI
-      setMessages([...messages, newMessage]);
-
-      // Send to WebSocket server
       if (ws.current && ws.current.readyState === WebSocket.OPEN) {
-        // We set isOwn to false for other clients when broadcasting
-        ws.current.send(JSON.stringify({ ...newMessage, isOwn: false }));
+        ws.current.send(JSON.stringify({ type: 'message', text: inputText }));
       } else {
         console.warn("WebSocket is not connected");
       }
-
       setInputText('');
     }
   };

@@ -7,14 +7,11 @@
  * In production, replace BASE_URL with your actual live domain (e.g., 'https://api.yourdomain.com').
  */
 
-// Your computer's current local IP address
-const LOCAL_IP = '192.168.1.7';
-
-// The port your Node.js backend is running on
-const PORT = '3000';
+import { API_BASE_URL } from './api';
 
 export const CONFIG = {
   // Base URLs for API calls
-  API_URL: `http://${LOCAL_IP}:${PORT}/api/v1`,
-  WS_URL: `ws://${LOCAL_IP}:${PORT}/api/v1`,
+  API_URL: `${API_BASE_URL}/api/v1`,
+  WS_URL: `${API_BASE_URL.replace('http', 'ws')}/api/v1`,
 };
+

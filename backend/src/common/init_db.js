@@ -9,6 +9,13 @@ CREATE TABLE users (
     id SERIAL PRIMARY KEY,
     phone_number VARCHAR(20) UNIQUE NOT NULL,
     phone_verified BOOLEAN DEFAULT false,
+    name VARCHAR(255),
+    profile_image_url VARCHAR(255),
+    profile_image_public_id VARCHAR(255),
+    bike_model VARCHAR(255),
+    bike_image_url VARCHAR(255),
+    bike_image_public_id VARCHAR(255),
+    profile_completed BOOLEAN DEFAULT false,
     last_login_at TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
