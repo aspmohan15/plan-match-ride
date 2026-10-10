@@ -1,11 +1,30 @@
 import { query } from '../../common/db.js';
+import { authenticate } from '../auth/auth.middleware.js';
 
 export default async function (fastify, opts) {
 
-  // Get all trips
+  // Get all active public upcoming trips
   fastify.get('/', async (request, reply) => {
     try {
-      const res = await query('SELECT * FROM trips ORDER BY start_time ASC LIMIT 20');
+      const res = await query(`
+        SELECT t.*, u.name as user_name, u.profile_image_url
+        FROM trips t
+        JOIN users u ON t.creator_id = u.id
+        WHERE t.status = $1 AND t.start_time >= CURRENT_TIMESTAMP
+        ORDER BY t.start_time ASC LIMIT 20
+      `, ['planned']);
+      return res.rows;
+    } catch (err) {
+      fastify.log.error(err, 'Database query failed');
+      return reply.code(500).send({ error: 'Internal Server Error' });
+    }
+  });
+
+  // Get current user's trips
+  fastify.get('/my-trips', { preHandler: [authenticate] }, async (request, reply) => {
+    try {
+      const userId = request.user.id;
+      const res = await query('SELECT * FROM trips WHERE creator_id = $1 ORDER BY start_time ASC', [userId]);
       return res.rows;
     } catch (err) {
       fastify.log.error(err, 'Database query failed');
@@ -14,16 +33,18 @@ export default async function (fastify, opts) {
   });
 
   // Create a new trip
-  fastify.post('/', async (request, reply) => {
+  fastify.post('/', { preHandler: [authenticate] }, async (request, reply) => {
     const { title, description, start_location, end_location, start_time, status } = request.body || {};
+    const creator_id = request.user.id;
 
     try {
       const text = `
-        INSERT INTO trips (title, description, start_location, end_location, start_time, status)
-        VALUES ($1, $2, $3, $4, $5, $6)
+        INSERT INTO trips (creator_id, title, description, start_location, end_location, start_time, status)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
         RETURNING *
       `;
       const values = [
+        creator_id,
         title || 'Untitled Trip',
         description || '',
         start_location,
@@ -56,18 +77,19 @@ export default async function (fastify, opts) {
   });
 
   // Update a trip status
-  fastify.patch('/:id/status', async (request, reply) => {
+  fastify.patch('/:id/status', { preHandler: [authenticate] }, async (request, reply) => {
     const { id } = request.params;
     const { status } = request.body; // e.g., 'active', 'completed', 'cancelled'
+    const userId = request.user.id;
 
     try {
       const text = `
         UPDATE trips
         SET status = $1
-        WHERE id = $2
+        WHERE id = $2 AND creator_id = $3
         RETURNING *
       `;
-      const res = await query(text, [status, id]);
+      const res = await query(text, [status, id, userId]);
 
       if (res.rows.length === 0) {
         return reply.code(404).send({ error: 'Trip not found' });
@@ -81,12 +103,13 @@ export default async function (fastify, opts) {
   });
 
   // Delete a trip
-  fastify.delete('/:id', async (request, reply) => {
+  fastify.delete('/:id', { preHandler: [authenticate] }, async (request, reply) => {
     const { id } = request.params;
+    const userId = request.user.id;
 
     try {
-      const text = 'DELETE FROM trips WHERE id = $1 RETURNING id';
-      const res = await query(text, [id]);
+      const text = 'DELETE FROM trips WHERE id = $1 AND creator_id = $2 RETURNING id';
+      const res = await query(text, [id, userId]);
 
       if (res.rows.length === 0) {
         return reply.code(404).send({ error: 'Trip not found' });

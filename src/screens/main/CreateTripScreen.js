@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Alert, Modal, FlatList, ActivityIndicator } from 'react-native';
 import Toast from 'react-native-toast-message';
 import { ERROR_MESSAGES } from '../../constants/errors';
-import { API_BASE_URL } from '../../constants/api';
+import api from '../../services/api';
 import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
@@ -44,8 +44,7 @@ export default function CreateTripScreen({ navigation }) {
     setLoadingLocations(true);
     setLocationError(null);
     try {
-      const response = await fetch(`${API_BASE_URL}/api/v1/locations`);
-      const json = await response.json();
+      const json = await api.get('/locations');
       if (json.success && json.data && json.data.locations) {
         setLocations(json.data.locations);
       } else {
@@ -145,13 +144,7 @@ export default function CreateTripScreen({ navigation }) {
         status: 'planned'
       };
 
-      const response = await fetch(`${API_BASE_URL}/api/v1/trips`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-
-      if (!response.ok) throw new Error("Failed to create trip on backend");
+      await api.post('/trips', payload);
 
       Alert.alert('Trip Published!', 'Your trip has been created successfully.', [
         { text: 'OK', onPress: () => navigation.goBack() }

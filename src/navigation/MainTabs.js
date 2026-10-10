@@ -31,7 +31,7 @@ export function MainTabs() {
         component={DiscoverScreen}
         options={{
           tabBarLabel: 'Discover',
-          tabBarIcon: ({ size }) => <Text style={{ fontSize: size || 24 }}>🔎</Text>,
+          tabBarIcon: ({ size }) => <Text style={{ fontSize: size || 24 }}>🔍</Text>,
         }}
       />
       <Tab.Screen

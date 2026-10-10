@@ -5,6 +5,7 @@ import { MainTabs } from './MainTabs';
 import CreateTripScreen from '../screens/main/CreateTripScreen';
 import GroupChatScreen from '../screens/main/GroupChatScreen';
 import RiderProfileScreen from '../screens/main/RiderProfileScreen';
+import DestinationDetailsScreen from '../screens/main/DestinationDetailsScreen';
 import { AuthContext } from '../context/AuthContext';
 import { View, ActivityIndicator } from 'react-native';
 
@@ -43,6 +44,14 @@ export function RootNavigator() {
             name="RiderProfile"
             component={RiderProfileScreen}
             options={{ headerShown: true, title: 'Rider Profile' }}
+          />
+          <Stack.Screen
+            name="DestinationDetails"
+            component={DestinationDetailsScreen}
+            options={({ route }) => ({
+              headerShown: true,
+              title: route.params?.destinationName || 'Destination',
+            })}
           />
         </>
       ) : (

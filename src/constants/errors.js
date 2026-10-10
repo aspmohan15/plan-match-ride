@@ -8,7 +8,7 @@ export const ERROR_MESSAGES = {
   DATETIME_REQUIRED: "We can't ride back in time. When are we rolling out? ⌚",
   PREFERENCES_REQUIRED: "Fill up the tank! Select your trip type, pace, and pack size. ⛽",
   COMPLETE_ALL: "Please complete all fields before publishing. 🏍️",
-  PHONE_NOT_INDIAN: "Hold your horses! We only support valid Indian mobile numbers starting with 6-9. 🇮🇳🏍️",
+  PHONE_NOT_INDIAN: "Hold your horses! We only support valid Indian mobile numbers starting with 5-9. 🇮🇳🏍️",
   DATETIME_PAST: "Time machine is in the shop! Please pick a future date and time. 🕰️",
   BIKE_PHOTO_REQUIRED: "Let's see that beautiful machine! Upload a photo of your bike. 📸🏍️",
   PHOTO_REQUIRED: "We need to know who's under the helmet! Please add a profile photo. 📸👤",

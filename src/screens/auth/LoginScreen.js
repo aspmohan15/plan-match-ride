@@ -27,8 +27,8 @@ export default function LoginScreen({ navigation }) {
 
   const handleSendOTP = async () => {
     const phone = phoneNumber.trim();
-    if (phone.length !== 10) {
-      Toast.show({ type: 'error', text1: 'Validation Error', text2: 'Please enter a valid 10-digit mobile number.' });
+    if (!/^[5-9]\d{9}$/.test(phone)) {
+      Toast.show({ type: 'error', text1: 'Validation Error', text2: ERROR_MESSAGES.PHONE_NOT_INDIAN });
       return;
     }
 

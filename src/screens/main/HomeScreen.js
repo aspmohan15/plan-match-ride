@@ -1,34 +1,38 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, FlatList, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import DateTimePicker from '@react-native-community/datetimepicker';
 import Toast from 'react-native-toast-message';
 import { ERROR_MESSAGES } from '../../constants/errors';
 import { registerForPushNotificationsAsync } from '../../services/notifications.service';
-import { API_BASE_URL } from '../../constants/api';
+import api from '../../services/api';
+import { AuthService } from '../../services/auth.service';
 
 const LOCATIONS = ["Bangalore", "Mysore", "Coorg", "Chikmagalur", "Nandi Hills", "Ooty", "Kodaikanal", "Yercaud", "Chennai", "Coimbatore"];
+
+const getGreeting = () => {
+  const hour = new Date().getHours();
+  if (hour < 12) return 'Good morning';
+  if (hour < 17) return 'Good afternoon';
+  return 'Good evening';
+};
 
 export default function HomeScreen({ navigation }) {
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
-
-  const [date, setDate] = useState(null);
-  const [showDatePicker, setShowDatePicker] = useState(false);
-
-  const [time, setTime] = useState(null);
-  const [showTimePicker, setShowTimePicker] = useState(false);
 
   const [modalVisible, setModalVisible] = useState(false);
   const [selectingField, setSelectingField] = useState(null); // 'from' or 'to'
 
   const [trips, setTrips] = useState([]);
   const [loadingTrips, setLoadingTrips] = useState(false);
+  const [userProfile, setUserProfile] = useState(null);
+  const [myDestination, setMyDestination] = useState(null);
 
   // Fetch upcoming trips when the screen comes into focus
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
       fetchUpcomingTrips();
+      fetchDiscoverData();
     });
 
     // Return the function to unsubscribe from the event so it gets removed on unmount
@@ -40,28 +44,65 @@ export default function HomeScreen({ navigation }) {
       console.log("Push Token:", token);
     });
     // Initial fetch
+    fetchUserProfile();
     fetchUpcomingTrips();
+    fetchDiscoverData();
   }, []);
+
+  const fetchUserProfile = async () => {
+    try {
+      const json = await AuthService.getCurrentUser();
+      if (json.success) {
+        setUserProfile(json.data.user || json.data);
+      }
+    } catch (err) {
+      console.warn("Failed to fetch user profile", err);
+    }
+  };
+
+  const fetchDiscoverData = async () => {
+    try {
+      const myDestRes = await api.get('/discover/my-destination');
+      if (myDestRes && myDestRes.destination) {
+        setMyDestination(myDestRes);
+      } else {
+        setMyDestination(null);
+      }
+    } catch (err) {
+      console.warn("Failed to fetch my destination", err);
+    }
+  };
 
   const fetchUpcomingTrips = async () => {
     setLoadingTrips(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/api/v1/trips`);
-      if (response.ok) {
-        const data = await response.json();
-        // Map backend keys to frontend keys if necessary
-        const formattedTrips = data
-          .filter(trip => trip.status === 'planned') // ONLY SHOW UPCOMING TRIPS ON HOME SCREEN
-          .map(trip => ({
+      const data = await api.get('/trips/my-trips');
+
+      // Map backend keys to frontend keys if necessary
+      const formattedTrips = data
+        .filter(trip => {
+           if (trip.status !== 'planned') return false;
+
+           // Compare dates ignoring time to avoid timezone edge cases hiding today's trips
+           const tripDate = new Date(trip.start_time);
+           tripDate.setHours(0, 0, 0, 0);
+           const today = new Date();
+           today.setHours(0, 0, 0, 0);
+
+           return tripDate >= today;
+        })
+        .map(trip => ({
             id: trip.id.toString(),
             from: trip.start_location,
             to: trip.end_location || 'TBD',
             date: new Date(trip.start_time).toLocaleDateString(),
-            riders: trip.riders_count || 1,
-            compatibility: 'High compatibility'
-          }));
-        setTrips(formattedTrips);
-      }
+            time: new Date(trip.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            dateObj: new Date(trip.start_time),
+            riders: trip.riders_count || 1
+          }))
+        .sort((a, b) => a.dateObj - b.dateObj)
+        .slice(0, 3); // Max 2-3 upcoming trips
+      setTrips(formattedTrips);
     } catch (error) {
       console.warn("Failed to fetch trips from backend:", error);
       setTrips([]);
@@ -76,36 +117,7 @@ export default function HomeScreen({ navigation }) {
     setModalVisible(false);
   };
 
-  const onDateChange = (event, selectedDate) => {
-    setShowDatePicker(false);
-    if (selectedDate) setDate(selectedDate);
-  };
-
-  const onTimeChange = (event, selectedTime) => {
-    setShowTimePicker(false);
-    if (selectedTime) setTime(selectedTime);
-  };
-
   const handleFindRiders = () => {
-    if (!date || !time) {
-        Toast.show({ type: 'error', text1: 'Missing info', text2: 'Please select a Date and Time.' });
-        return;
-    }
-
-    const combinedDate = new Date(
-      date.getFullYear(),
-      date.getMonth(),
-      date.getDate(),
-      time.getHours(),
-      time.getMinutes(),
-      time.getSeconds()
-    );
-
-    if (combinedDate <= new Date()) {
-      Toast.show({ type: 'error', text1: 'Validation Error', text2: ERROR_MESSAGES.DATETIME_PAST });
-      return;
-    }
-
     if (!from || !to) {
         Toast.show({ type: 'error', text1: 'Missing info', text2: 'Please select From and To locations.' });
         return;
@@ -118,36 +130,16 @@ export default function HomeScreen({ navigation }) {
 
     Toast.show({ type: 'success', text1: 'Searching', text2: 'Looking for riders...' });
 
-    // Attempt to hit the matching API using configured IP
-    fetch(`${API_BASE_URL}/api/v1/matches`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ from, to, date: combinedDate.toISOString() })
-    })
-      .then(res => res.json())
-      .then(data => {
-        // Navigate to DiscoverScreen and pass the dummy matches flag
-        navigation.navigate('Discover', {
-          searchQuery: { from, to, date: combinedDate.toISOString() },
-          showResults: true
-        });
-      })
-      .catch(err => {
-        console.log('Match API fallback:', err);
-        // Even if offline/failed, navigate to show the dummy match results
-        navigation.navigate('Discover', {
-          searchQuery: { from, to, date: combinedDate.toISOString() },
-          showResults: true
-        });
-      });
+    // Navigate directly to DiscoverScreen with the search query
+    navigation.navigate('Discover', {
+      searchQuery: { from, to },
+      showResults: true
+    });
 
-    // Navigate first, then clear inputs using React Navigation listener
-    // This ensures data is passed correctly and inputs are clean when returning
+    // Clear inputs when leaving the screen
     const unsubscribe = navigation.addListener('blur', () => {
       setFrom('');
       setTo('');
-      setDate(null);
-      setTime(null);
       unsubscribe(); // remove listener after it runs once
     });
   };
@@ -155,16 +147,21 @@ export default function HomeScreen({ navigation }) {
   const renderTrip = ({ item }) => (
     <View style={styles.tripCard}>
       <Text style={styles.tripRoute}>📍 {item.from} → 🏁 {item.to}</Text>
-      <Text style={styles.tripDetails}>📅 {item.date} • 🏍️ {item.riders} riders</Text>
-      <View style={styles.compatibilityBadge}>
-        <Text style={styles.compatibilityText}>✨ {item.compatibility}</Text>
-      </View>
+      <Text style={styles.tripDetails}>📅 {item.date} • 🕒 {item.time} • 👥 {item.riders} riders</Text>
+      <TouchableOpacity
+        style={styles.viewTripButton}
+        onPress={() => navigation.navigate('My Trips')}
+      >
+        <Text style={styles.viewTripText}>View Trip</Text>
+      </TouchableOpacity>
     </View>
   );
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+        <Text style={styles.greetingTitle}>{getGreeting()}, {userProfile?.name || 'Rider'} 👋</Text>
+
         <View style={styles.heroCard}>
           <Text style={styles.heroTitle}>🏍️ Where are you riding next?</Text>
           <View style={styles.inputContainer}>
@@ -187,46 +184,60 @@ export default function HomeScreen({ navigation }) {
             </TouchableOpacity>
           </View>
 
-          <View style={styles.inputContainer}>
-            <TouchableOpacity style={styles.pickerButton} onPress={() => setShowDatePicker(true)}>
-              <Text style={date ? styles.pickerTextValue : styles.pickerTextPlaceholder}>
-                {date ? `📅 ${date.toLocaleDateString()}` : '📅 DATE'}
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.pickerButton} onPress={() => setShowTimePicker(true)}>
-              <Text style={time ? styles.pickerTextValue : styles.pickerTextPlaceholder}>
-                {time ? `🕒 ${time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : '🕒 TIME'}
-              </Text>
-            </TouchableOpacity>
-          </View>
-
           <TouchableOpacity style={styles.primaryButton} onPress={handleFindRiders}>
             <Text style={styles.primaryButtonText}>🔍 Find Riders</Text>
           </TouchableOpacity>
         </View>
 
         <View style={styles.actionContainer}>
-           <Text style={styles.sectionTitle}>📅 Upcoming Trips</Text>
-           <TouchableOpacity onPress={() => navigation.navigate('CreateTrip')}>
-             <Text style={styles.createTripText}>➕ Create Trip</Text>
-           </TouchableOpacity>
+           <Text style={styles.sectionTitle}>🏍️ Your Upcoming Rides</Text>
         </View>
 
         {loadingTrips ? (
           <Text style={{ textAlign: 'center', marginTop: 20, color: '#666' }}>Loading trips...</Text>
         ) : trips.length === 0 ? (
           <View style={styles.emptyTripsContainer}>
-             <Text style={{fontSize: 40, marginBottom: 10}}>🏍️</Text>
-             <Text style={styles.emptyTripsTitle}>No upcoming trips</Text>
-             <Text style={styles.emptyTripsText}>You haven't planned any rides yet. Click 'Create Trip' above to get started!</Text>
+             <Text style={styles.emptyTripsTitle}>No upcoming rides yet.</Text>
+             <Text style={styles.emptyTripsText}>Find riders going where you want to ride.</Text>
+             <TouchableOpacity style={styles.emptyButton} onPress={() => navigation.navigate('CreateTrip')}>
+               <Text style={styles.emptyButtonText}>➕ Create Trip</Text>
+             </TouchableOpacity>
           </View>
         ) : (
-          trips.map(item => (
-            <View key={item.id}>
-              {renderTrip({ item })}
-            </View>
-          ))
+          <View>
+            {trips.map(item => (
+              <View key={item.id}>
+                {renderTrip({ item })}
+              </View>
+            ))}
+            <TouchableOpacity onPress={() => navigation.navigate('My Trips')}>
+              <Text style={styles.viewAllText}>View all →</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        <View style={styles.actionContainer}>
+           <Text style={styles.sectionTitle}>🔥 Riders Going Where You Go</Text>
+        </View>
+        {myDestination ? (
+          <View style={styles.heroCard}>
+            <Text style={styles.myDestinationTitle}>{myDestination.destination.name}</Text>
+            <Text style={styles.myDestinationSub}>{myDestination.riderCount} {myDestination.riderCount === 1 ? 'rider is' : 'riders are'} planning to go</Text>
+            <Text style={{fontSize: 24, marginBottom: 16}}>👤 👤 👤 {myDestination.riderCount > 3 ? `+${myDestination.riderCount - 3}` : ''}</Text>
+            <TouchableOpacity
+              style={styles.seeAllButton}
+              onPress={() => navigation.navigate('Discover')}
+            >
+              <Text style={styles.seeAllText}>Discover Riders →</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <View style={styles.emptyTripsContainer}>
+             <Text style={styles.emptyTripsTitle}>No upcoming trip yet.</Text>
+             <TouchableOpacity style={styles.emptyButton} onPress={() => navigation.navigate('Discover')}>
+               <Text style={styles.emptyButtonText}>🔍 Find Riders</Text>
+             </TouchableOpacity>
+          </View>
         )}
 
         <View style={{ height: 40 }} />
@@ -252,28 +263,6 @@ export default function HomeScreen({ navigation }) {
           </View>
         </View>
       </Modal>
-
-      {showDatePicker && (
-        <DateTimePicker
-          value={date || new Date()}
-          mode="date"
-          display="default"
-          minimumDate={new Date()}
-          onChange={onDateChange}
-          accentColor="#FF5722" // Works on iOS; Android requires modifying styles.xml
-        />
-      )}
-
-      {showTimePicker && (
-        <DateTimePicker
-          value={time || new Date()}
-          mode="time"
-          is24Hour={false}
-          display="default"
-          onChange={onTimeChange}
-          accentColor="#FF5722"
-        />
-      )}
     </SafeAreaView>
   );
 }
@@ -281,12 +270,13 @@ export default function HomeScreen({ navigation }) {
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#F5F7FA' },
   container: { padding: 16 },
+  greetingTitle: { fontSize: 24, fontWeight: 'bold', color: '#1A1A1A', marginBottom: 20 },
   heroCard: {
     backgroundColor: '#fff', borderRadius: 24, padding: 20,
     shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.06, shadowRadius: 12, elevation: 3, marginBottom: 24,
   },
-  heroTitle: { fontSize: 22, fontWeight: 'bold', color: '#333', marginBottom: 16 },
+  heroTitle: { fontSize: 20, fontWeight: 'bold', color: '#333', marginBottom: 16 },
   inputContainer: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 },
   pickerButton: {
     flex: 1, backgroundColor: '#F0F3F6', borderRadius: 12,
@@ -314,7 +304,7 @@ const styles = StyleSheet.create({
     borderStyle: 'dashed'
   },
   emptyTripsTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
     color: '#333',
     marginBottom: 8,
@@ -324,6 +314,44 @@ const styles = StyleSheet.create({
     color: '#666',
     textAlign: 'center',
     lineHeight: 20,
+    marginBottom: 12,
+  },
+  emptyButton: {
+    backgroundColor: '#1A1A1A', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 8, marginTop: 8
+  },
+  emptyButtonText: {
+    color: '#fff', fontWeight: 'bold'
+  },
+  viewAllText: {
+    color: '#FF5722', fontWeight: 'bold', fontSize: 16, textAlign: 'right', marginBottom: 20
+  },
+  myDestinationTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#FF5722',
+    marginBottom: 4,
+  },
+  myDestinationSub: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 16,
+  },
+  seeAllButton: {
+    backgroundColor: '#E8F0FE',
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  seeAllText: {
+    color: '#1A73E8',
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
+  viewTripButton: {
+    backgroundColor: '#E8F5E9', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, alignSelf: 'flex-start'
+  },
+  viewTripText: {
+    color: '#2E7D32', fontWeight: 'bold', fontSize: 14
   },
   tripCard: {
     backgroundColor: '#fff', borderRadius: 12, padding: 16, marginBottom: 12,
@@ -332,11 +360,6 @@ const styles = StyleSheet.create({
   },
   tripRoute: { fontSize: 18, fontWeight: 'bold', color: '#333', marginBottom: 8 },
   tripDetails: { fontSize: 14, color: '#666', marginBottom: 12 },
-  compatibilityBadge: {
-    alignSelf: 'flex-start', backgroundColor: '#E8F5E9', paddingHorizontal: 8,
-    paddingVertical: 4, borderRadius: 4,
-  },
-  compatibilityText: { color: '#2E7D32', fontSize: 12, fontWeight: 'bold' },
 
   // Modal Styles
   modalOverlay: {

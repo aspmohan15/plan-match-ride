@@ -4,6 +4,7 @@ import { View, Text, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator, 
 import { useNavigation } from '@react-navigation/native';
 import Toast from 'react-native-toast-message';
 import { CONFIG } from '../../constants/config';
+import api from '../../services/api';
 
 const TABS = ['Upcoming', 'Active', 'Completed', 'Cancelled'];
 const TAB_ICONS = { Upcoming: '📅', Active: '🏍️', Completed: '✅', Cancelled: '❌' };
@@ -30,16 +31,23 @@ export default function MyTripsScreen() {
   const fetchTrips = async () => {
     setLoading(true);
     try {
-      // Assuming GET /api/v1/trips returns all trips, and we filter them locally
-      // In a real app, you would pass the status as a query param (e.g. ?status=planned)
-      const response = await fetch(`${CONFIG.API_URL}/trips`);
-      if (response.ok) {
-        const data = await response.json();
+      // Fetch only the authenticated user's trips from the backend
+      const data = await api.get('/trips/my-trips');
 
-        // Map backend keys to frontend keys, handling 'planned' vs 'Upcoming' statuses
-        const mappedTrips = data.map(t => {
+      // Map backend keys to frontend keys, handling 'planned' vs 'Upcoming' statuses
+      const mappedTrips = data.map(t => {
           let frontendStatus = t.status;
-          if (t.status === 'planned') frontendStatus = 'Upcoming';
+
+          // Compare dates ignoring time to avoid timezone edge cases hiding today's trips
+          const tripDate = new Date(t.start_time);
+          tripDate.setHours(0, 0, 0, 0);
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          const isPast = tripDate < today;
+
+          if (t.status === 'planned') {
+              frontendStatus = isPast ? 'Completed' : 'Upcoming';
+          }
           else if (t.status === 'in_progress' || t.status === 'active') frontendStatus = 'Active';
           else if (t.status === 'completed') frontendStatus = 'Completed';
           else if (t.status === 'cancelled') frontendStatus = 'Cancelled';
@@ -53,9 +61,6 @@ export default function MyTripsScreen() {
         });
 
         setTrips(mappedTrips);
-      } else {
-        throw new Error('Server returned ' + response.status);
-      }
     } catch (error) {
       console.warn("Failed to fetch My Trips from backend:", error);
       Alert.alert("Error", "Could not load trips. Please check your connection.");
@@ -70,18 +75,10 @@ export default function MyTripsScreen() {
       // For backend 'Upcoming' is stored as 'planned'
       const backendStatus = newStatus === 'Upcoming' ? 'planned' : newStatus.toLowerCase();
 
-      const response = await fetch(`${CONFIG.API_URL}/trips/${tripId}/status`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: backendStatus })
-      });
+      await api.patch(`/trips/${tripId}/status`, { status: backendStatus });
 
-      if (response.ok) {
-        Toast.show({ type: 'success', text1: 'Success', text2: `Trip moved to ${newStatus}` });
-        fetchTrips(); // Refresh the list
-      } else {
-        throw new Error('Failed to update');
-      }
+      Toast.show({ type: 'success', text1: 'Success', text2: `Trip moved to ${newStatus}` });
+      fetchTrips(); // Refresh the list
     } catch (error) {
       console.warn('Update failed:', error);
       Alert.alert('Error', 'Failed to update trip status.');
@@ -99,15 +96,9 @@ export default function MyTripsScreen() {
           style: "destructive",
           onPress: async () => {
             try {
-              const response = await fetch(`${CONFIG.API_URL}/trips/${tripId}`, {
-                method: 'DELETE'
-              });
-              if (response.ok) {
-                Toast.show({ type: 'success', text1: 'Deleted', text2: 'Trip removed successfully.' });
-                fetchTrips(); // Refresh the list
-              } else {
-                throw new Error('Failed to delete');
-              }
+              await api.request('DELETE', `/trips/${tripId}`);
+              Toast.show({ type: 'success', text1: 'Deleted', text2: 'Trip removed successfully.' });
+              fetchTrips(); // Refresh the list
             } catch (error) {
               console.warn('Delete failed:', error);
               Alert.alert('Error', 'Failed to delete trip.');
@@ -176,6 +167,13 @@ export default function MyTripsScreen() {
       {loading ? (
         <View style={styles.emptyContainer}>
           <ActivityIndicator size="large" color="#FF5722" />
+        </View>
+      ) : trips.length === 0 ? (
+        <View style={styles.emptyContainer}>
+          <Text style={styles.emptyTextTitle}>You haven't created any trips yet.</Text>
+          <TouchableOpacity style={styles.createButton} onPress={() => navigation.navigate('CreateTrip')}>
+            <Text style={styles.createButtonText}>Create Trip</Text>
+          </TouchableOpacity>
         </View>
       ) : filteredTrips.length === 0 ? (
         <View style={styles.emptyContainer}>
@@ -318,8 +316,25 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  emptyTextTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 16,
+  },
   emptyText: {
     fontSize: 16,
     color: '#999',
   },
+  createButton: {
+    backgroundColor: '#FF5722',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  createButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  }
 });
