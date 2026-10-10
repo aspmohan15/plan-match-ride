@@ -20,7 +20,7 @@ const getTrendyRidingStyle = (style) => {
   return `${style} 🏍️✨`;
 };
 
-export default function ProfileScreen() {
+export default function ProfileScreen({ navigation }) {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isLogoutModalVisible, setLogoutModalVisible] = useState(false);
@@ -32,6 +32,7 @@ export default function ProfileScreen() {
   const [otpRequested, setOtpRequested] = useState(false);
   const [otp, setOtp] = useState('');
   const [savingProfile, setSavingProfile] = useState(false);
+  const [pendingConnectionsCount, setPendingConnectionsCount] = useState(0);
 
   const { logout } = useContext(AuthContext);
 
@@ -51,6 +52,13 @@ export default function ProfileScreen() {
         const cleanPhone = (userData.phoneNumber || userData.phone_number || '').replace(/\D/g, '').slice(-10);
         setEditPhone(cleanPhone);
       }
+
+      // Fetch pending connections count for the badge
+      const { default: api } = await import('../../services/api');
+      const pendingRes = await api.get('/groups/connections/pending');
+      if (Array.isArray(pendingRes)) {
+        setPendingConnectionsCount(pendingRes.length);
+      }
     } catch (err) {
       console.error('Failed to fetch profile', err);
     } finally {
@@ -59,8 +67,12 @@ export default function ProfileScreen() {
   };
 
   useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      fetchProfile();
+    });
     fetchProfile();
-  }, []);
+    return unsubscribe;
+  }, [navigation]);
 
   const openEditModal = () => {
     setEditName(profile?.name || '');
@@ -202,6 +214,28 @@ export default function ProfileScreen() {
               <Text style={styles.cardValue}>{getTrendyRidingStyle(user.ridingStyle)}</Text>
             </View>
           </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Connections</Text>
+          <TouchableOpacity
+            style={styles.card}
+            onPress={() => navigation.navigate('MyConnections')}
+          >
+            <View style={styles.iconContainer}>
+              <Text style={styles.iconEmoji}>🤝</Text>
+            </View>
+            <View style={styles.cardRight}>
+              <Text style={styles.cardLabel}>Network</Text>
+              <Text style={styles.cardValue}>My Connections</Text>
+            </View>
+            {pendingConnectionsCount > 0 && (
+              <View style={styles.notificationBadge}>
+                <Text style={styles.notificationBadgeText}>{pendingConnectionsCount}</Text>
+              </View>
+            )}
+            <Text style={{ fontSize: 24, color: '#ccc' }}>›</Text>
+          </TouchableOpacity>
         </View>
 
         <TouchableOpacity style={styles.logoutButton} onPress={() => setLogoutModalVisible(true)}>
@@ -447,6 +481,18 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
     color: '#1A1A1A',
+  },
+  notificationBadge: {
+    backgroundColor: '#FF3B30',
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    marginRight: 10,
+  },
+  notificationBadgeText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: 'bold',
   },
   logoutButton: {
     backgroundColor: '#FFF0F0',

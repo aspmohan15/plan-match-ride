@@ -25,7 +25,7 @@ class ApiService {
       // React Native needs to automatically set multipart/form-data; boundary=...
       const ctKey = getHeaderKey('content-type');
       if (ctKey) delete headers[ctKey];
-    } else if (!getHeaderKey('content-type')) {
+    } else if (data !== null && data !== undefined && !getHeaderKey('content-type')) {
       headers['Content-Type'] = 'application/json';
     }
 

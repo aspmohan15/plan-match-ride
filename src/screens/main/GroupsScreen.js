@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, FlatList, ActivityIndicator, Alert, Modal, TextInput } from 'react-native';
-import { CONFIG } from '../../constants/config';
+import api from '../../services/api';
 import Toast from 'react-native-toast-message';
 
 export default function GroupsScreen({ navigation }) {
@@ -22,13 +22,12 @@ export default function GroupsScreen({ navigation }) {
     setLoading(true);
     try {
       // Fetch from the newly created backend routes!
-      const groupsRes = await fetch(`${CONFIG.API_URL}/groups`);
-      const connectionsRes = await fetch(`${CONFIG.API_URL}/groups/connections/pending`);
+      const [groupsData, connectionsData] = await Promise.all([
+        api.get('/groups'),
+        api.get('/groups/connections/pending')
+      ]);
 
-      if (groupsRes.ok && connectionsRes.ok) {
-        const groupsData = await groupsRes.json();
-        const connectionsData = await connectionsRes.json();
-
+      if (groupsData && connectionsData) {
         // Map backend group data to frontend format
         const formattedGroups = groupsData.map(g => ({
           id: g.id.toString(),
@@ -55,12 +54,12 @@ export default function GroupsScreen({ navigation }) {
     // 2. Fire the real API call
     try {
       const endpoint = action === 'accept'
-        ? `${CONFIG.API_URL}/groups/connections/${requestId}/accept`
-        : `${CONFIG.API_URL}/groups/connections/${requestId}/decline`;
+        ? `/groups/connections/${requestId}/accept`
+        : `/groups/connections/${requestId}/decline`;
 
-      const response = await fetch(endpoint, { method: 'POST' });
+      const response = await api.post(endpoint);
 
-      if (response.ok) {
+      if (response && response.success) {
         if (action === 'accept') {
           Alert.alert("Success", "You are now connected!");
         } else {
@@ -72,6 +71,7 @@ export default function GroupsScreen({ navigation }) {
     } catch (err) {
       console.error("Connection action failed:", err);
       // In a real app, you would roll back the optimistic UI update here
+      fetchGroupsAndConnections();
     }
   };
 
@@ -113,7 +113,7 @@ export default function GroupsScreen({ navigation }) {
 
             // Fire the real API call
             try {
-               await fetch(`${CONFIG.API_URL}/groups/${groupId}/leave`, { method: 'POST' });
+               await api.post(`/groups/${groupId}/leave`);
                Alert.alert("Success", `You have left ${groupName}.`);
             } catch (err) {
                console.error("Failed to leave group", err);
@@ -132,13 +132,9 @@ export default function GroupsScreen({ navigation }) {
 
     setIsCreating(true);
     try {
-      const response = await fetch(`${CONFIG.API_URL}/groups`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: newGroupName, description: newGroupDesc })
-      });
+      const response = await api.post(`/groups`, { name: newGroupName, description: newGroupDesc });
 
-      if (response.ok) {
+      if (response && response.id) {
         Toast.show({ type: 'success', text1: 'Group Created', text2: `Welcome to ${newGroupName}!` });
         setCreateModalVisible(false);
         setNewGroupName('');

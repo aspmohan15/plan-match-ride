@@ -61,19 +61,28 @@ export default function DestinationDetailsScreen() {
           )}
         </View>
 
-        <TouchableOpacity
-          style={styles.viewTripButton}
-          onPress={() => navigation.navigate('RiderProfile', {
-            rider: {
-              name: item.user_name || 'Anonymous Rider',
-              profileImage: item.profile_image_url,
-              bike: item.bike_model || 'Unknown Bike',
-              ridingStyle: item.description || 'Any'
-            }
-          })}
-        >
-          <Text style={styles.viewTripButtonText}>View Profile</Text>
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          <TouchableOpacity
+            style={[styles.viewTripButton, { flex: 1 }]}
+            onPress={() => navigation.navigate('RiderProfile', {
+              rider: {
+                id: item.user_id,
+                name: item.user_name || 'Anonymous Rider',
+                profileImage: item.profile_image_url,
+                bike: item.bike_model || 'Unknown Bike',
+                ridingStyle: item.description || 'Any'
+              }
+            })}
+          >
+            <Text style={styles.viewTripButtonText}>View Profile</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.viewTripButton, { flex: 1, backgroundColor: '#FF5722' }]}
+            onPress={() => navigation.navigate('TripDetails', { tripId: item.id })}
+          >
+            <Text style={[styles.viewTripButtonText, { color: '#fff' }]}>View Trip</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     );
   };

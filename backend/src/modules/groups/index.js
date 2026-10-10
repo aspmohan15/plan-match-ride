@@ -1,4 +1,5 @@
 import { query } from '../../common/db.js';
+import { authenticate } from '../auth/auth.middleware.js';
 
 export default async function (fastify, opts) {
   // Get all active groups
@@ -55,40 +56,112 @@ export default async function (fastify, opts) {
     }
   });
 
-  // Get pending connection requests (Mocking it to return fake user data for now based on the connections table)
-  fastify.get('/connections/pending', async (request, reply) => {
+  // Request a connection
+  fastify.post('/connections/:targetUserId/request', { preHandler: [authenticate] }, async (request, reply) => {
+    const { targetUserId } = request.params;
+    const userId = request.user.id;
     try {
-      // In a real app we would join the users table to get the name.
-      // For this demo, we'll return a hardcoded pending request to make testing easy.
-      return [
-         { id: '101', name: 'Alex Johnson', mutual: '3 mutual friends' }
-      ];
+      if (userId == targetUserId) return reply.code(400).send({ error: 'Cannot connect with yourself' });
+
+      const check = await query(`SELECT * FROM connections WHERE user_id_1 = $1 AND user_id_2 = $2`, [userId, targetUserId]);
+      if (check.rows.length > 0) return reply.code(400).send({ error: 'Connection already exists or is pending' });
+
+      // Assuming user_id_1 is requester, user_id_2 is target
+      await query(`INSERT INTO connections (user_id_1, user_id_2, status) VALUES ($1, $2, 'pending')`, [userId, targetUserId]);
+
+      await query(`
+        INSERT INTO notifications (user_id, type, title, message, related_id)
+        VALUES ($1, 'CONNECTION_REQUEST', 'New Connection Request', 'Someone wants to connect with you', $2)
+      `, [targetUserId, userId]);
+
+      return { success: true, status: 'pending' };
+    } catch(err) {
+      return reply.code(500).send({ error: 'Internal Server Error' });
+    }
+  });
+
+  // Get sent connection requests
+  fastify.get('/connections/sent', { preHandler: [authenticate] }, async (request, reply) => {
+    const userId = request.user.id;
+    try {
+      const text = `
+        SELECT u.id as target_id, u.name, u.profile_image_url, u.bike_model
+        FROM connections c
+        JOIN users u ON c.user_id_2 = u.id
+        WHERE c.user_id_1 = $1 AND c.status = 'pending'
+      `;
+      const res = await query(text, [userId]);
+      return res.rows.map(row => ({
+        id: row.target_id.toString(),
+        name: row.name || 'Anonymous',
+        bike: row.bike_model || 'Unknown Bike',
+        profile_image: row.profile_image_url
+      }));
     } catch (err) {
       fastify.log.error(err, 'Database query failed for connections');
       return reply.code(500).send({ error: 'Internal Server Error' });
     }
   });
 
-  // Leave a group
-  fastify.post('/:id/leave', async (request, reply) => {
-    const { id } = request.params;
-    // In a real app with auth, you'd use the logged-in user's ID to remove them from a group_members table.
-    // Since we don't have auth fully wired, we will just return success.
+  // Get accepted connections
+  fastify.get('/connections/accepted', { preHandler: [authenticate] }, async (request, reply) => {
+    const userId = request.user.id;
     try {
-      fastify.log.info(`User requested to leave group ${id}`);
-      return reply.code(200).send({ success: true, message: 'Left group successfully' });
+      const text = `
+        SELECT
+          u.id as connection_id, u.name, u.profile_image_url, u.bike_model
+        FROM connections c
+        JOIN users u ON (c.user_id_1 = u.id OR c.user_id_2 = u.id) AND u.id != $1
+        WHERE (c.user_id_1 = $1 OR c.user_id_2 = $1) AND c.status = 'accepted'
+      `;
+      const res = await query(text, [userId]);
+      return res.rows.map(row => ({
+        id: row.connection_id.toString(),
+        name: row.name || 'Anonymous',
+        bike: row.bike_model || 'Unknown Bike',
+        profile_image: row.profile_image_url
+      }));
     } catch (err) {
-      fastify.log.error(err, 'Failed to leave group');
+      fastify.log.error(err, 'Database query failed for connections');
+      return reply.code(500).send({ error: 'Internal Server Error' });
+    }
+  });
+
+  // Get pending connection requests
+  fastify.get('/connections/pending', { preHandler: [authenticate] }, async (request, reply) => {
+    const userId = request.user.id;
+    try {
+      const text = `
+        SELECT c.user_id_1 as requester_id, u.name, u.profile_image_url, u.bike_model
+        FROM connections c
+        JOIN users u ON c.user_id_1 = u.id
+        WHERE c.user_id_2 = $1 AND c.status = 'pending'
+      `;
+      const res = await query(text, [userId]);
+      return res.rows.map(row => ({
+        id: row.requester_id.toString(), // The ID of the user requesting
+        name: row.name || 'Anonymous',
+        bike: row.bike_model || 'Unknown Bike',
+        profile_image: row.profile_image_url
+      }));
+    } catch (err) {
+      fastify.log.error(err, 'Database query failed for connections');
       return reply.code(500).send({ error: 'Internal Server Error' });
     }
   });
 
   // Accept a connection request
-  fastify.post('/connections/:id/accept', async (request, reply) => {
-    const { id } = request.params;
+  fastify.post('/connections/:requesterId/accept', { preHandler: [authenticate] }, async (request, reply) => {
+    const { requesterId } = request.params;
+    const userId = request.user.id;
     try {
-      // In a real app: UPDATE connections SET status = 'accepted' WHERE id = $1
-      fastify.log.info(`Accepted connection ${id}`);
+      await query(`UPDATE connections SET status = 'accepted' WHERE user_id_1 = $1 AND user_id_2 = $2`, [requesterId, userId]);
+
+      await query(`
+        INSERT INTO notifications (user_id, type, title, message, related_id)
+        VALUES ($1, 'CONNECTION_ACCEPTED', 'Connection Accepted', 'Your connection request was accepted', $2)
+      `, [requesterId, userId]);
+
       return reply.code(200).send({ success: true, message: 'Connection accepted' });
     } catch (err) {
       return reply.code(500).send({ error: 'Internal Server Error' });
@@ -96,13 +169,42 @@ export default async function (fastify, opts) {
   });
 
   // Decline a connection request
-  fastify.post('/connections/:id/decline', async (request, reply) => {
-    const { id } = request.params;
+  fastify.post('/connections/:requesterId/decline', { preHandler: [authenticate] }, async (request, reply) => {
+    const { requesterId } = request.params;
+    const userId = request.user.id;
     try {
-      // In a real app: DELETE FROM connections WHERE id = $1
-      fastify.log.info(`Declined connection ${id}`);
+      await query(`DELETE FROM connections WHERE user_id_1 = $1 AND user_id_2 = $2`, [requesterId, userId]);
       return reply.code(200).send({ success: true, message: 'Connection declined' });
     } catch (err) {
+      return reply.code(500).send({ error: 'Internal Server Error' });
+    }
+  });
+
+  // Cancel sent connection request
+  fastify.post('/connections/:targetUserId/cancel', { preHandler: [authenticate] }, async (request, reply) => {
+    const { targetUserId } = request.params;
+    const userId = request.user.id;
+    try {
+      await query(`DELETE FROM connections WHERE user_id_1 = $1 AND user_id_2 = $2 AND status = 'pending'`, [userId, targetUserId]);
+      return reply.code(200).send({ success: true, message: 'Connection request cancelled' });
+    } catch (err) {
+      return reply.code(500).send({ error: 'Internal Server Error' });
+    }
+  });
+
+  // Check connection status
+  fastify.get('/connections/:targetUserId/status', { preHandler: [authenticate] }, async (request, reply) => {
+    const { targetUserId } = request.params;
+    const userId = request.user.id;
+    try {
+      const check1 = await query(`SELECT status FROM connections WHERE user_id_1 = $1 AND user_id_2 = $2`, [userId, targetUserId]);
+      if (check1.rows.length > 0) return { status: check1.rows[0].status, direction: 'outgoing' };
+
+      const check2 = await query(`SELECT status FROM connections WHERE user_id_1 = $1 AND user_id_2 = $2`, [targetUserId, userId]);
+      if (check2.rows.length > 0) return { status: check2.rows[0].status, direction: 'incoming' };
+
+      return { status: 'none' };
+    } catch(err) {
       return reply.code(500).send({ error: 'Internal Server Error' });
     }
   });// Add a member to a group

@@ -6,27 +6,49 @@ import Toast from 'react-native-toast-message';
 import { CONFIG } from '../../constants/config';
 import api from '../../services/api';
 
-const TABS = ['Upcoming', 'Active', 'Completed', 'Cancelled'];
-const TAB_ICONS = { Upcoming: '📅', Active: '🏍️', Completed: '✅', Cancelled: '❌' };
+const TABS = ['Upcoming', 'Requests', 'Active', 'Completed', 'Cancelled'];
+const TAB_ICONS = { Upcoming: '📅', Requests: '🔔', Active: '🏍️', Completed: '✅', Cancelled: '❌' };
 
 export default function MyTripsScreen() {
   const [activeTab, setActiveTab] = useState('Upcoming');
   const [trips, setTrips] = useState([]);
+  const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(false);
   const navigation = useNavigation();
 
   // Fetch from the real backend instead of using Mock Data
   useEffect(() => {
-    fetchTrips();
+    if (activeTab === 'Requests') {
+      fetchRequests();
+    } else {
+      fetchTrips();
+    }
   }, [activeTab]);
 
   // Also fetch when screen comes into focus, in case a trip was just created
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
-      fetchTrips();
+      if (activeTab === 'Requests') {
+        fetchRequests();
+      } else {
+        fetchTrips();
+      }
     });
     return unsubscribe;
   }, [navigation, activeTab]);
+
+  const fetchRequests = async () => {
+    setLoading(true);
+    try {
+      const data = await api.get('/trips/requests/incoming');
+      setRequests(data);
+    } catch (error) {
+      console.warn("Failed to fetch requests", error);
+      Alert.alert("Error", "Could not load incoming requests.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const fetchTrips = async () => {
     setLoading(true);
@@ -109,10 +131,49 @@ export default function MyTripsScreen() {
     );
   };
 
+  const handleRequestAction = async (requestId, action) => {
+    try {
+      await api.post(`/trips/requests/${requestId}/${action}`);
+      Toast.show({ type: 'success', text1: 'Success', text2: `Request ${action}ed successfully.` });
+      fetchRequests(); // Refresh
+    } catch (error) {
+      console.warn(`Request ${action} failed:`, error);
+      Alert.alert('Error', `Failed to ${action} request.`);
+    }
+  };
+
   const filteredTrips = trips.filter((trip) => trip.status === activeTab);
 
-  const renderTrip = ({ item }) => (
+  const renderRequest = ({ item }) => (
     <View style={styles.tripCard}>
+      <View style={styles.tripCardHeader}>
+        <View>
+          <Text style={styles.tripTitle}>📍 {item.title}</Text>
+          <Text style={styles.tripDate}>👤 {item.requester_name}</Text>
+        </View>
+      </View>
+      <View style={styles.statusRow}>
+        <View style={styles.statusBadge}>
+          <Text style={styles.statusText}>🏍️ {item.bike_model || 'Unknown Bike'}</Text>
+        </View>
+        <View style={styles.actionButtonsContainer}>
+          <TouchableOpacity style={styles.actionBtnActive} onPress={() => handleRequestAction(item.request_id, 'accept')}>
+             <Text style={styles.actionBtnText}>✅ Accept</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.actionBtnCancel} onPress={() => handleRequestAction(item.request_id, 'decline')}>
+             <Text style={styles.actionBtnText}>❌ Decline</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </View>
+  );
+
+  const renderTrip = ({ item }) => (
+    <TouchableOpacity
+      style={styles.tripCard}
+      onPress={() => navigation.navigate('TripDetails', { tripId: item.id })}
+      activeOpacity={0.8}
+    >
       <View style={styles.tripCardHeader}>
         <View>
           <Text style={styles.tripTitle}>📍 {item.title}</Text>
@@ -145,7 +206,7 @@ export default function MyTripsScreen() {
            </TouchableOpacity>
         )}
       </View>
-    </View>
+    </TouchableOpacity>
   );
 
   return (
@@ -168,6 +229,19 @@ export default function MyTripsScreen() {
         <View style={styles.emptyContainer}>
           <ActivityIndicator size="large" color="#FF5722" />
         </View>
+      ) : activeTab === 'Requests' ? (
+        requests.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyText}>🔔 No pending requests for your trips.</Text>
+          </View>
+        ) : (
+          <FlatList
+            data={requests}
+            keyExtractor={(item) => item.request_id.toString()}
+            renderItem={renderRequest}
+            contentContainerStyle={styles.listContainer}
+          />
+        )
       ) : trips.length === 0 ? (
         <View style={styles.emptyContainer}>
           <Text style={styles.emptyTextTitle}>You haven't created any trips yet.</Text>

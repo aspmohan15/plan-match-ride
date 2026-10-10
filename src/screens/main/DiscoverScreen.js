@@ -170,7 +170,7 @@ export default function DiscoverScreen({ route }) {
           >
             <Text style={styles.primaryButtonText}>View Profile</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={[styles.seeAllButton, { flex: 1 }]} onPress={() => navigation.navigate('DestinationDetails', { destinationId: item.end_location, destinationName: item.end_location })}>
+          <TouchableOpacity style={[styles.seeAllButton, { flex: 1 }]} onPress={() => navigation.navigate('TripDetails', { tripId: item.id })}>
             <Text style={styles.seeAllText}>View Trip</Text>
           </TouchableOpacity>
         </View>
