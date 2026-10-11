@@ -2,7 +2,7 @@ import { query } from './db.js';
 
 const createTablesQuery = `
 -- Clean slate for dev environment
-DROP TABLE IF EXISTS group_members, groups, connections, trips, bikes, user_profiles, users CASCADE;
+DROP TABLE IF EXISTS group_members, groups, connections, trip_requests, trip_participants, trips, bikes, user_profiles, users, otp_verifications, rate_limit_events, notifications CASCADE;
 
 -- User accounts
 CREATE TABLE users (
@@ -16,6 +16,7 @@ CREATE TABLE users (
     bike_image_url VARCHAR(255),
     bike_image_public_id VARCHAR(255),
     profile_completed BOOLEAN DEFAULT false,
+    last_phone_change_at TIMESTAMP,
     last_login_at TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -68,6 +69,24 @@ CREATE TABLE trips (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Trip Participants (Many-to-Many mapping for users joining trips)
+CREATE TABLE trip_participants (
+    trip_id INTEGER REFERENCES trips(id) ON DELETE CASCADE,
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (trip_id, user_id)
+);
+
+-- Trip Requests (Users asking to join a trip)
+CREATE TABLE trip_requests (
+    id SERIAL PRIMARY KEY,
+    trip_id INTEGER REFERENCES trips(id) ON DELETE CASCADE,
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    status VARCHAR(50) DEFAULT 'pending', -- pending, accepted, declined
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(trip_id, user_id)
+);
+
 -- User connections (friends, matching)
 CREATE TABLE connections (
     user_id_1 INTEGER REFERENCES users(id) ON DELETE CASCADE,
@@ -92,6 +111,26 @@ CREATE TABLE group_members (
     user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
     joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (group_id, user_id)
+);
+
+-- Rate limit events for auditing
+CREATE TABLE rate_limit_events (
+    id SERIAL PRIMARY KEY,
+    identifier VARCHAR(255) NOT NULL,
+    action VARCHAR(100) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Notifications
+CREATE TABLE notifications (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    type VARCHAR(50) NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    message TEXT NOT NULL,
+    related_id INTEGER,
+    is_read BOOLEAN DEFAULT false,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 `;
 

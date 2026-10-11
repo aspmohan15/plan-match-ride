@@ -19,8 +19,8 @@ FROM node:22-alpine
 # Set node environment to production
 ENV NODE_ENV=production
 
-# Install bash or required native libs if necessary, keep it minimal
-RUN apk add --no-cache dumb-init
+# Install dumb-init with insecure registry workaround
+RUN apk add --no-cache dumb-init --repository http://dl-cdn.alpinelinux.org/alpine/v3.24/main --repository http://dl-cdn.alpinelinux.org/alpine/v3.24/community --allow-untrusted
 
 # Set working directory
 WORKDIR /usr/src/app

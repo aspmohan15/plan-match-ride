@@ -1,5 +1,6 @@
 import * as SecureStore from 'expo-secure-store';
 import { API_BASE_URL } from '../constants/api';
+import { DeviceEventEmitter } from 'react-native';
 
 const API_URL = `${API_BASE_URL}/api/v1`;
 
@@ -71,6 +72,10 @@ class ApiService {
       // [API RESPONSE RAW] Logging
       console.log(`[API RESPONSE RAW]: ${response.status}`, rawText);
 
+      if (response.status === 401) {
+        DeviceEventEmitter.emit('auth:logout');
+      }
+
       if (!response.ok) {
         let errorData;
         try {
@@ -83,6 +88,7 @@ class ApiService {
         const e = new Error(errPayload.message || 'API Error');
         e.code = errPayload.code;
         e.details = errPayload;
+        e.status = response.status;
         throw e;
       }
 
@@ -94,7 +100,8 @@ class ApiService {
       }
     } catch (error) {
       // [API FETCH ERROR RAW] Logging
-      console.error('[API FETCH ERROR RAW]:', error);
+      // Use console.log instead of console.error to avoid React Native RedBox for standard API errors
+      console.log(`[API FETCH ERROR]: ${error.message}`);
       throw error;
     }
   }

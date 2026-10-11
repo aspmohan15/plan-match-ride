@@ -1,4 +1,5 @@
 import React, { createContext, useState, useEffect } from 'react';
+import { DeviceEventEmitter } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import { AuthService } from '../services/auth.service';
 
@@ -10,6 +11,15 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     checkInitialAuth();
+
+    const subscription = DeviceEventEmitter.addListener('auth:logout', () => {
+      console.log('401 Unauthorized received. Logging out...');
+      logout();
+    });
+
+    return () => {
+      subscription.remove();
+    };
   }, []);
 
   const checkInitialAuth = async () => {

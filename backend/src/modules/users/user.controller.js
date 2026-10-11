@@ -113,3 +113,34 @@ export async function updateProfileInfo(request, reply) {
     });
   }
 }
+
+export async function searchUserByPhone(request, reply) {
+  try {
+    const { phone } = request.query;
+    if (!phone) {
+      return reply.code(400).send({ success: false, error: { code: 'MISSING_PHONE', message: 'Phone number is required' }});
+    }
+
+    // Normalize phone (strip spaces)
+    const normalizedPhone = phone.replace(/\s+/g, '');
+
+    const res = await query(
+      `SELECT u.id, u.name as full_name, u.phone_number, u.profile_image_url, u.bike_model as model, u.bike_image_url
+       FROM users u
+       WHERE u.phone_number = $1`,
+      [normalizedPhone]
+    );
+
+    if (res.rows.length === 0) {
+      return reply.code(404).send({ success: false, error: { code: 'USER_NOT_FOUND', message: 'User not found' }});
+    }
+
+    return reply.send(res.rows[0]);
+  } catch (error) {
+    request.log.error(error);
+    return reply.code(500).send({
+      success: false,
+      error: { code: 'SEARCH_FAILED', message: 'Unable to search user' }
+    });
+  }
+}

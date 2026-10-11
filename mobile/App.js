@@ -20,7 +20,7 @@ export default function App() {
           <RootNavigator />
         </NavigationContainer>
       </AuthProvider>
-      <Toast config={toastConfig} />
+      <Toast config={toastConfig} topOffset={60} zIndex={9999} />
     </SafeAreaProvider>
   );
 }

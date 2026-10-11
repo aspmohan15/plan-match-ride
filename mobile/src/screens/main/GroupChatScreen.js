@@ -4,7 +4,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import * as SMS from 'expo-sms';
 import { CONFIG } from '../../constants/config';
 import { API_BASE_URL } from '../../constants/api';
+import ApiService from '../../services/api';
 import Toast from 'react-native-toast-message';
+import { toastConfig } from '../../components/ToastConfig';
 
 export default function GroupChatScreen({ route }) {
   const [messages, setMessages] = useState([]);
@@ -63,9 +65,8 @@ export default function GroupChatScreen({ route }) {
 
   const fetchGroupMembers = async () => {
     try {
-      const response = await fetch(`${CONFIG.API_URL}/groups/${groupId}/members`);
-      if (response.ok) {
-        const data = await response.json();
+      const data = await ApiService.get(`/groups/${groupId}/members`);
+      if (data) {
         setGroupMembers(data);
       }
     } catch (err) {
@@ -94,18 +95,16 @@ export default function GroupChatScreen({ route }) {
     setFoundRider(null);
 
     try {
-      const response = await fetch(`${CONFIG.API_URL}/users/search?phone=${searchPhone}`);
-      if (response.ok) {
-        const data = await response.json();
-        setFoundRider(data);
-      } else if (response.status === 404) {
-        setFoundRider({ notFound: true });
-      } else {
-        throw new Error('Failed to search');
-      }
+      const data = await ApiService.get(`/users/search?phone=${searchPhone}`);
+      setFoundRider(data);
     } catch (err) {
-      console.warn(err);
-      Alert.alert('Error', 'Failed to search for rider. Please try again.');
+      if (err.code === 'USER_NOT_FOUND' || err.message?.includes('User not found') || err.status === 404) {
+        setFoundRider({ notFound: true });
+        Toast.show({ type: 'error', text1: 'Rider Not Found', text2: "This biker isn't on TripMates yet!" });
+      } else {
+        console.log('Search error:', err.message);
+        Toast.show({ type: 'error', text1: 'Error', text2: 'Failed to search for rider. Please try again.' });
+      }
     } finally {
       setIsSearching(false);
     }
@@ -113,24 +112,16 @@ export default function GroupChatScreen({ route }) {
 
   const handleAddRiderToGroup = async () => {
     try {
-      const response = await fetch(`${CONFIG.API_URL}/groups/${groupId}/add_member`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_id: foundRider.id })
-      });
+      await ApiService.post(`/groups/${groupId}/add_member`, { user_id: foundRider.id });
 
-      if (response.ok) {
-        Toast.show({ type: 'success', text1: 'Rider Added! 🏍️', text2: `${foundRider.full_name} has joined the group.` });
-        setAddRiderModalVisible(false);
-        setSearchPhone('');
-        setFoundRider(null);
-        fetchGroupMembers(); // Refresh the members list!
-      } else {
-        throw new Error('Failed to add');
-      }
+      Toast.show({ type: 'success', text1: 'Rider Added! 🏍️', text2: `${foundRider.full_name} has joined the group.` });
+      setAddRiderModalVisible(false);
+      setSearchPhone('');
+      setFoundRider(null);
+      fetchGroupMembers(); // Refresh the members list!
     } catch (err) {
       console.warn(err);
-      Alert.alert('Error', 'Could not add rider to the group.');
+      Toast.show({ type: 'error', text1: 'Error', text2: err.message || 'Could not add rider to the group.' });
     }
   };
 
@@ -306,6 +297,7 @@ export default function GroupChatScreen({ route }) {
             </View>
           </View>
         </TouchableOpacity>
+        <Toast config={toastConfig} topOffset={40} zIndex={9999} />
       </Modal>
 
       {/* View Members Modal */}

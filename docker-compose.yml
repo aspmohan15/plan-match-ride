@@ -1,0 +1,52 @@
+services:
+  backend:
+    build: 
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      - DATABASE_URL=postgresql://postgres:password@postgres:5432/tripmates
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=super-secret-jwt-key-replace-me
+      - OTP_MODE=test
+      - TEST_PHONE_NUMBER=+916380142113
+      - TEST_OTP=123456
+      - SMS_PROVIDER=console
+      - CLOUDINARY_CLOUD_NAME=daoyi8uqb
+      - CLOUDINARY_API_KEY=121566128149131
+      - CLOUDINARY_API_SECRET=ehJnopAVmZXkvT-epL5-9J6u6JE
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    volumes:
+      - ./backend:/usr/src/app
+      - /usr/src/app/node_modules
+
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=tripmates
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d tripmates"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+volumes:
+  postgres_data:
