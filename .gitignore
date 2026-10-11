@@ -1,35 +1,33 @@
-# Android Studio & Gradle
-*.iml
-.gradle
-/local.properties
-/.idea/caches
-/.idea/libraries
-/.idea/modules.xml
-/.idea/workspace.xml
-/.idea/navEditor.xml
-/.idea/assetWizardSettings.xml
-/build
-/captures
-.externalNativeBuild
-.cxx
-local.properties
-
 # OS specific files
 .DS_Store
 Thumbs.db
 
-# React Native & Expo
-node_modules/
-.expo/
-dist/
-npm-debug.*
-yarn-debug.*
-yarn-error.*
-*.log
-
-# Backend
-backend/node_modules/
-backend/.env
-
 # Agent/AI tools
 .agent/
+.idea/
+
+# Mobile (React Native / Expo / Android)
+/mobile/node_modules/
+/mobile/.expo/
+/mobile/dist/
+/mobile/*.iml
+/mobile/.gradle
+/mobile/local.properties
+/mobile/.idea/caches
+/mobile/.idea/libraries
+/mobile/.idea/modules.xml
+/mobile/.idea/workspace.xml
+/mobile/.idea/navEditor.xml
+/mobile/.idea/assetWizardSettings.xml
+/mobile/build
+/mobile/captures
+/mobile/.externalNativeBuild
+/mobile/.cxx
+/mobile/npm-debug.*
+/mobile/yarn-debug.*
+/mobile/yarn-error.*
+/mobile/*.log
+
+# Backend (Node.js / Fastify)
+/backend/node_modules/
+/backend/.env
