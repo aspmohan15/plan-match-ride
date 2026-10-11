@@ -10,8 +10,15 @@
 
 ## 2. Completed Features
 *(The following features are implemented, tested, and actively wired up in the UI and backend.)*
-- **Authentication**: OTP-based login/signup flow, secure JWT storage using `expo-secure-store`.
-- **Dynamic Profile Editing**: Users can edit their Name and Mobile Number. Changing the mobile number triggers a strict OTP verification flow before updating the database.
+- **Authentication & Security**: 
+  - OTP-based login/signup flow, secure JWT storage using `expo-secure-store`.
+  - Configurable Twilio Verify vs Mock Console SMS provider via `.env`.
+  - Dynamic Profile Editing with strict OTP verification before DB commits.
+  - **Robust Server-Side Rate Limiting**: 
+    - Enforced 30-sec cooldowns, 3/15m limits, and 5/24h limits on OTP sending via Postgres `rate_limit_events`.
+    - Protected Twilio Verification with a hard 5-failure lockout (15-min ban) to prevent brute-forcing and API toll-fraud.
+    - Transactional locks prevent concurrent request bypasses.
+    - Registered mobile numbers can only be changed once every 30 days (`last_phone_change_at`).
 - **Trip Discovery**: 
   - Users can search for routes via "Starting Location" and "Destination".
   - The Discover screen successfully retrieves active public trips matching the destination.
@@ -32,13 +39,13 @@
   - Unread vs. Read highlighting and routing to the relevant profile/trip upon tapping.
 
 ## 3. Current Work
-**Feature Focus**: Finalizing the "Notifications" Screen & Delivery
+**Feature Focus**: Finalizing Secure OTP Rate Limiting & Abuse Prevention
 - **Files Modified**: 
-  - `backend/src/modules/notifications/index.js`: Added REST API routes to fetch user-specific notifications and mark them as read.
-  - `src/screens/main/NotificationsScreen.js` (Created): Built a dedicated screen listing chronological alerts with visual distinctions for unread status.
-  - `src/navigation/MainTabs.js`: Added a global header right button (🔔) to jump to notifications.
-  - `src/navigation/RootNavigator.js`: Registered `Notifications` in the stack.
-- **Status**: The backend routes, frontend UI, and screen navigation for in-app notifications are fully wired up.
+  - `backend/src/common/rate_limit.js` (Created): Handles PostgreSQL transactional rate-limiting logic.
+  - `backend/src/modules/auth/auth.service.js`: Integrated robust sending and verifying rate-limits. Added 30-day mobile number change restrictions.
+  - `backend/src/modules/auth/auth.controller.js`: Adjusted to catch `RATE_LIMIT_EXCEEDED` errors and return HTTP 429 instead of 400.
+  - `backend/rate_limit_migration.js` (Created): Schema updates applied to add `rate_limit_events` table and `last_phone_change_at` column.
+- **Status**: The backend now securely defends the Twilio API and user accounts from abuse.
 
 ## 4. Remaining Tasks
 *(In priority order)*
@@ -55,10 +62,12 @@
   - `trip_participants`: A confirmed Many-to-Many mapping for accepted riders.
   - `connections`: Maps `user_id_1` to `user_id_2` to establish friendships.
   - `notifications`: Stores historical events for users.
+  - `rate_limit_events`: Tracks abuse vectors (e.g. `send_otp`, `verify_failed`, `phone_number_changed`).
 - **Security & Authorization**:
   - The backend extensively uses a `preHandler: [authenticate]` middleware.
-  - All endpoints enforce SQL-level authorization (e.g., verifying `creator_id = request.user.id` before allowing a user to accept a trip join request).
-- **Migrations applied**: The `create_tables.js` and `init_db.js` scripts have successfully deployed all schemas to the local `ride_match` database.
+  - Fastify endpoints now respond with `429 Too Many Requests` where appropriate.
+  - Transaction-level locking ensures parallel API calls cannot bypass phone-change checks.
+- **Migrations applied**: The `create_tables.js` and `rate_limit_migration.js` scripts have successfully deployed all schemas to the local `ride_match` database.
 
 ## 6. Known Errors
 - **No Blocking Errors**: The React Native frontend and Fastify backend both pass syntax checks (`node -c`).
@@ -79,4 +88,4 @@
 - **Git Status**: Currently on branch `main`. There are several modified and untracked files ready to be committed (including the newly created `NotificationsScreen.js`).
 
 ---
-**Summary**: The in-app notifications loop is complete! Riders can now tap the bell icon to securely review historical join/connection requests. The single best next step is to commit the current working state, then build out the actual Group Chat functionality to enable live communication between riders.
+**Summary**: The authentication infrastructure is now production-grade! Users are protected against OTP brute-forcing, Twilio spam (toll fraud), and account takeover. Rate limits are handled entirely server-side using Postgres. The next step is to build out the actual Group Chat functionality to enable live communication between riders.

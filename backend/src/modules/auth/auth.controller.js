@@ -3,6 +3,7 @@ import { sendOtpService, verifyOtpService, getUserProfile, updateUserProfile } f
 export async function sendOtpController(request, reply) {
   try {
     const { phoneNumber, isUpdate } = request.body || {};
+    const ip = request.ip;
 
     if (!phoneNumber) {
       return reply.code(400).send({
@@ -11,7 +12,7 @@ export async function sendOtpController(request, reply) {
       });
     }
 
-    await sendOtpService(phoneNumber, isUpdate);
+    await sendOtpService(phoneNumber, isUpdate, ip);
 
     return reply.send({
       success: true,
@@ -19,7 +20,7 @@ export async function sendOtpController(request, reply) {
     });
   } catch (error) {
     if (error.code) {
-      return reply.code(400).send({ success: false, error: { code: error.code, message: error.message } });
+      return reply.code(error.code === 'RATE_LIMIT_EXCEEDED' ? 429 : 400).send({ success: false, error: { code: error.code, message: error.message } });
     }
     request.log.error(error);
     return reply.code(500).send({
@@ -32,6 +33,7 @@ export async function sendOtpController(request, reply) {
 export async function verifyOtpController(request, reply) {
   try {
     const { phoneNumber, otp } = request.body || {};
+    const ip = request.ip;
 
     if (!phoneNumber || !otp) {
       return reply.code(400).send({
@@ -40,7 +42,7 @@ export async function verifyOtpController(request, reply) {
       });
     }
 
-    const result = await verifyOtpService(phoneNumber, otp);
+    const result = await verifyOtpService(phoneNumber, otp, ip);
 
     return reply.send({
       success: true,
@@ -48,7 +50,7 @@ export async function verifyOtpController(request, reply) {
     });
   } catch (error) {
     if (error.code) {
-      return reply.code(400).send({ success: false, error: { code: error.code, message: error.message } });
+      return reply.code(error.code === 'RATE_LIMIT_EXCEEDED' ? 429 : 400).send({ success: false, error: { code: error.code, message: error.message } });
     }
     request.log.error(error);
     return reply.code(500).send({
@@ -94,8 +96,9 @@ export async function updateProfileController(request, reply) {
   try {
     const userId = request.user.id;
     const { name, phoneNumber, otp } = request.body || {};
+    const ip = request.ip;
 
-    const result = await updateUserProfile(userId, { name, phoneNumber, otp });
+    const result = await updateUserProfile(userId, { name, phoneNumber, otp }, ip);
 
     return reply.send({
       success: true,
@@ -110,7 +113,7 @@ export async function updateProfileController(request, reply) {
     });
   } catch (error) {
     if (error.code) {
-      return reply.code(400).send({ success: false, error: { code: error.code, message: error.message } });
+      return reply.code(error.code === 'RATE_LIMIT_EXCEEDED' ? 429 : 400).send({ success: false, error: { code: error.code, message: error.message } });
     }
     request.log.error(error);
     return reply.code(500).send({
