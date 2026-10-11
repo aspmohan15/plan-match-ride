@@ -1,5 +1,5 @@
 import React from 'react';
-import { Text } from 'react-native';
+import { Text, TouchableOpacity } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import HomeScreen from '../screens/main/HomeScreen';
 import DiscoverScreen from '../screens/main/DiscoverScreen';
@@ -9,13 +9,21 @@ import ProfileScreen from '../screens/main/ProfileScreen';
 
 const Tab = createBottomTabNavigator();
 
-export function MainTabs() {
+export function MainTabs({ navigation }) {
   return (
     <Tab.Navigator
       screenOptions={{
         headerShown: true,
         tabBarActiveTintColor: '#FF5722',
         tabBarInactiveTintColor: 'gray',
+        headerRight: () => (
+          <TouchableOpacity
+            style={{ marginRight: 16 }}
+            onPress={() => navigation.navigate('Notifications')}
+          >
+            <Text style={{ fontSize: 24 }}>🔔</Text>
+          </TouchableOpacity>
+        ),
       }}
     >
       <Tab.Screen

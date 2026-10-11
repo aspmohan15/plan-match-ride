@@ -8,6 +8,7 @@ import RiderProfileScreen from '../screens/main/RiderProfileScreen';
 import DestinationDetailsScreen from '../screens/main/DestinationDetailsScreen';
 import TripDetailsScreen from '../screens/main/TripDetailsScreen';
 import MyConnectionsScreen from '../screens/main/MyConnectionsScreen';
+import NotificationsScreen from '../screens/main/NotificationsScreen';
 import { AuthContext } from '../context/AuthContext';
 import { View, ActivityIndicator } from 'react-native';
 
@@ -64,6 +65,11 @@ export function RootNavigator() {
             name="MyConnections"
             component={MyConnectionsScreen}
             options={{ headerShown: true, title: 'My Connections' }}
+          />
+          <Stack.Screen
+            name="Notifications"
+            component={NotificationsScreen}
+            options={{ headerShown: true, title: 'Notifications' }}
           />
         </>
       ) : (

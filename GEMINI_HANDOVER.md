@@ -26,22 +26,26 @@
 - **User Connections**:
   - Riders can view another rider's profile and request to "Connect".
   - Users can manage incoming, outgoing, and established connections.
+- **Notifications UI**:
+  - A notification bell in the main navigation tab header.
+  - A dedicated `NotificationsScreen.js` to view in-app alerts (join requests, acceptances, connections).
+  - Unread vs. Read highlighting and routing to the relevant profile/trip upon tapping.
 
 ## 3. Current Work
-**Feature Focus**: Finalizing the "My Connections" Screen & Integration
+**Feature Focus**: Finalizing the "Notifications" Screen & Delivery
 - **Files Modified**: 
-  - `backend/src/modules/groups/index.js`: Replaced mock data with authentic SQL queries for `/connections/accepted`, `/connections/sent`, and `/connections/pending`.
-  - `src/screens/main/MyConnectionsScreen.js` (Created): Built a dedicated screen with three tabs (Connected, Received, Sent) allowing users to Accept, Decline, or Cancel connection requests.
-  - `src/navigation/RootNavigator.js`: Added the `MyConnections` stack screen.
-  - `src/screens/main/ProfileScreen.js`: Added a "My Connections" card in the user's Garage/Preferences list. Dynamically fetches and displays a red notification badge if the user has pending incoming connection requests.
-- **Status**: The backend routes, frontend UI, and screen navigation are fully wired up.
+  - `backend/src/modules/notifications/index.js`: Added REST API routes to fetch user-specific notifications and mark them as read.
+  - `src/screens/main/NotificationsScreen.js` (Created): Built a dedicated screen listing chronological alerts with visual distinctions for unread status.
+  - `src/navigation/MainTabs.js`: Added a global header right button (🔔) to jump to notifications.
+  - `src/navigation/RootNavigator.js`: Registered `Notifications` in the stack.
+- **Status**: The backend routes, frontend UI, and screen navigation for in-app notifications are fully wired up.
 
 ## 4. Remaining Tasks
 *(In priority order)*
-1. **Push Notifications UI / Delivery**: Although the database inserts notification records into the `notifications` table during trip joins and connection acceptances, there is currently no `NotificationsScreen.js` to actually display these to the user in-app, nor is FCM/APNS fully configured.
-2. **Chat & Groups System**: The `GroupsScreen.js` lists active riding groups and attempts to route to `GroupChatScreen`, but robust group-chat websocket/real-time logic needs validation.
-3. **Advanced Route Matching**: The current Discover search relies on exact text matching (`ILIKE`). Adding spatial/GIS logic (e.g., Google Maps API or PostGIS) for overlapping routes.
-4. **Expanded Profile Attributes**: The backend currently doesn't provide a `city` field, so "Bangalore" is missing or hardcoded. The frontend `ProfileScreen` needs to be mapped to more dynamic backend bike/city data.
+1. **Chat & Groups System**: The `GroupsScreen.js` lists active riding groups and attempts to route to `GroupChatScreen`, but robust group-chat websocket/real-time logic needs validation.
+2. **Advanced Route Matching**: The current Discover search relies on exact text matching (`ILIKE`). Adding spatial/GIS logic (e.g., Google Maps API or PostGIS) for overlapping routes.
+3. **Expanded Profile Attributes**: The backend currently doesn't provide a `city` field, so "Bangalore" is missing or hardcoded. The frontend `ProfileScreen` needs to be mapped to more dynamic backend bike/city data.
+4. **Push Notifications Delivery**: In-app notifications are implemented, but actual outbound push notifications via Expo/FCM to devices are not fully configured.
 
 ## 5. Database and Backend
 - **PostgreSQL Schema**:
@@ -62,18 +66,17 @@
 - **Tooling**: `npm run lint` / `npm run eslint` fail because ESLint is not currently configured in `package.json`.
 
 ## 7. Next Session Instructions
-- **Task**: Implement the `NotificationsScreen.js`.
+- **Task**: Implement the `Chat & Groups System`.
 - **Files to Inspect First**: 
-  - `src/navigation/MainTabs.js` (to add a notification bell icon/tab).
-  - `backend/database/schema.sql` (to review the `notifications` table structure).
-- **Expected Result**: Users should be able to tap a bell icon, view a list of historical notifications (e.g., "Mohan accepted your connection request"), and tap them to navigate to the relevant profile or trip.
-- **Do Not Regress**: Ensure that marking notifications as "read" does not accidentally overwrite the actual connection or trip request statuses.
+  - `src/screens/main/GroupChatScreen.js` (to see the current UI).
+  - `backend/src/modules/chat/index.js` (to verify websocket or polling infrastructure).
+- **Expected Result**: Users in the same group or trip should be able to send real-time or polled messages to each other.
+- **Do Not Regress**: Ensure existing trip management and notification systems continue functioning correctly.
 
 ## 8. Verification
 - **Commands Run**:
   - Verified Fastify endpoints and JavaScript syntax using `node -c <file>`. 
-  - Validated database schema using custom local script (`db-check.js`).
-- **Git Status**: Currently on branch `main`. There are several modified and untracked files ready to be committed (including the newly created `MyConnectionsScreen.js` and `TripDetailsScreen.js`).
+- **Git Status**: Currently on branch `main`. There are several modified and untracked files ready to be committed (including the newly created `NotificationsScreen.js`).
 
 ---
-**Summary**: The app's core loop is complete! Riders can search for trips, request to join them, view comprehensive trip details, and manage 1-on-1 rider connections. The single best next step is to commit the current working state, then build the `Notifications` UI so users are visually alerted when these interactions occur.
+**Summary**: The in-app notifications loop is complete! Riders can now tap the bell icon to securely review historical join/connection requests. The single best next step is to commit the current working state, then build out the actual Group Chat functionality to enable live communication between riders.

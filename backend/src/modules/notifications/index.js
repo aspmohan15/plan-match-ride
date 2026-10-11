@@ -1,11 +1,65 @@
 // D:/MyApplication/backend/src/modules/notifications/index.js
 
 import { notificationService } from './service.js';
+import { query } from '../../common/db.js';
+import { authenticate } from '../auth/auth.middleware.js';
 
 export default async function notificationRoutes(fastify, options) {
 
+  // Fetch all notifications for the authenticated user
+  fastify.get('/', { preHandler: [authenticate] }, async (request, reply) => {
+    const userId = request.user.id;
+    try {
+      const res = await query(`
+        SELECT id, type, title, message, related_id, is_read, created_at
+        FROM notifications
+        WHERE user_id = $1
+        ORDER BY created_at DESC
+        LIMIT 50
+      `, [userId]);
+      return res.rows;
+    } catch (error) {
+      fastify.log.error(error);
+      return reply.code(500).send({ error: 'Failed to fetch notifications' });
+    }
+  });
+
+  // Mark a specific notification as read
+  fastify.patch('/:id/read', { preHandler: [authenticate] }, async (request, reply) => {
+    const { id } = request.params;
+    const userId = request.user.id;
+    try {
+      const res = await query(`
+        UPDATE notifications
+        SET is_read = true
+        WHERE id = $1 AND user_id = $2
+        RETURNING id
+      `, [id, userId]);
+
+      if (res.rows.length === 0) {
+        return reply.code(404).send({ error: 'Notification not found' });
+      }
+      return { success: true };
+    } catch (error) {
+      fastify.log.error(error);
+      return reply.code(500).send({ error: 'Failed to mark notification as read' });
+    }
+  });
+
+  // Mark all notifications as read for the user
+  fastify.patch('/read-all', { preHandler: [authenticate] }, async (request, reply) => {
+    const userId = request.user.id;
+    try {
+      await query(`UPDATE notifications SET is_read = true WHERE user_id = $1 AND is_read = false`, [userId]);
+      return { success: true };
+    } catch (error) {
+      fastify.log.error(error);
+      return reply.code(500).send({ error: 'Failed to mark notifications as read' });
+    }
+  });
+
   // Endpoint to register a new device token
-  fastify.post('/api/v1/devices', async (request, reply) => {
+  fastify.post('/devices', async (request, reply) => {
     const { userId, token } = request.body;
 
     if (!userId || !token) {
@@ -22,7 +76,7 @@ export default async function notificationRoutes(fastify, options) {
   });
 
   // Mock endpoint to trigger a test notification (useful for dev)
-  fastify.post('/api/v1/notifications/test', async (request, reply) => {
+  fastify.post('/test', async (request, reply) => {
     const { token, title, body } = request.body;
 
     if (!token || !title || !body) {

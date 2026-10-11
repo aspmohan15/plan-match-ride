@@ -43,9 +43,21 @@ class ApiService {
 
     // [API REQUEST] Logging
     console.log(`[API REQUEST]: ${method} ${url}`);
+
+    // Obscure sensitive info in logs
+    let logBody = fetchOptions.body;
+    if (typeof logBody === 'string' && logBody.includes('otp')) {
+      try {
+        const parsed = JSON.parse(logBody);
+        if (parsed.otp) parsed.otp = '***';
+        if (parsed.password) parsed.password = '***';
+        logBody = JSON.stringify(parsed);
+      } catch (e) {}
+    }
+
     console.log(`[API REQUEST HEADERS]:`, headers);
     if (!(data instanceof FormData)) {
-      console.log(`[API REQUEST BODY]:`, fetchOptions.body);
+      console.log(`[API REQUEST BODY]:`, logBody);
     } else {
       console.log(`[API REQUEST BODY]: FormData attached`);
     }
