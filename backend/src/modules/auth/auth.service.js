@@ -2,31 +2,15 @@ import { generateOtp, hashOtp, compareOtp, invalidateOtp, saveOtp } from './otp.
 import { getUserByPhone, createUser, updateUserLogin, getUserById, checkUserProfileCompletion } from './auth.repository.js';
 import { getSmsProvider } from './sms.provider.js';
 import { sendTwilioVerifyOtp, checkTwilioVerifyOtp } from './twilio.verify.js';
-import { enforceAndLogRateLimits, clearRateLimitEvents } from '../../common/rate_limit.js';
+import { checkOtpSendLimits, checkVerifyLimits, recordVerifyFailure, clearVerifyFailures } from '../../common/rate_limit.js';
 import jwt from 'jsonwebtoken';
 import { query } from '../../common/db.js';
 
 export async function sendOtpService(phoneNumber, isUpdate = false, ip = 'unknown') {
   const normalizedPhone = phoneNumber.replace(/\s+/g, '');
 
-  // 1. IP and Phone Level Rate Limits for SENDING OTP
-  await enforceAndLogRateLimits({
-    identifier: `send_otp_${normalizedPhone}`,
-    action: 'send_otp',
-    limits: [
-      { windowMinutes: 0.5, maxRequests: 1, message: 'Please wait 30 seconds before requesting another OTP.' },
-      { windowMinutes: 15, maxRequests: 3, message: 'Too many OTP requests. Please try again after 15 minutes.' },
-      { windowMinutes: 1440, maxRequests: 5, message: 'Daily OTP request limit reached. Try again tomorrow.' }
-    ]
-  });
-
-  await enforceAndLogRateLimits({
-    identifier: `ip_send_${ip}`,
-    action: 'send_otp',
-    limits: [
-      { windowMinutes: 15, maxRequests: 10, message: 'Too many requests from this IP.' }
-    ]
-  });
+  // 1. IP and Phone Level Rate Limits for SENDING OTP via Redis
+  await checkOtpSendLimits(normalizedPhone, ip);
 
   if (isUpdate) {
     const existingUser = await getUserByPhone(normalizedPhone);
@@ -56,18 +40,8 @@ export async function sendOtpService(phoneNumber, isUpdate = false, ip = 'unknow
 }
 
 async function verifyOtpWithRateLimit(normalizedPhone, otp, ip) {
-  // Check failure lock
-  const lockRes = await query(`
-    SELECT COUNT(*) as count
-    FROM rate_limit_events
-    WHERE identifier = $1 AND action = 'verify_failed' AND created_at >= NOW() - INTERVAL '15 minutes'
-  `, [`verify_${normalizedPhone}`]);
-
-  if (parseInt(lockRes.rows[0].count, 10) >= 5) {
-    const error = new Error('Too many incorrect attempts. Please wait 15 minutes before trying again.');
-    error.code = 'RATE_LIMIT_EXCEEDED';
-    throw error;
-  }
+  // Check failure lock in Redis
+  await checkVerifyLimits(normalizedPhone);
 
   // Attempt verification
   let otpRecord = null;
@@ -85,14 +59,14 @@ async function verifyOtpWithRateLimit(normalizedPhone, otp, ip) {
     }
   } catch (error) {
     if (error.code === 'INVALID_OTP' || error.code === 'TWILIO_ERROR') {
-      // Log the failure
-      await query(`INSERT INTO rate_limit_events (identifier, action) VALUES ($1, 'verify_failed')`, [`verify_${normalizedPhone}`]);
+      // Log the failure in Redis
+      await recordVerifyFailure(normalizedPhone);
     }
     throw error;
   }
 
   // Clear failures on success
-  await clearRateLimitEvents({ identifier: `verify_${normalizedPhone}`, action: 'verify_failed' });
+  await clearVerifyFailures(normalizedPhone);
   return otpRecord;
 }
 

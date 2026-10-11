@@ -38,7 +38,7 @@ export async function checkTwilioVerifyOtp(phone, code) {
     throw new Error('Twilio Verify is not configured properly in environment variables.');
   }
 
-  const url = `https://verify.twilio.com/v2/Services/${verifySid}/VerificationChecks`;
+  const url = `https://verify.twilio.com/v2/Services/${verifySid}/VerificationCheck`;
   const body = new URLSearchParams({
     To: phone,
     Code: code
